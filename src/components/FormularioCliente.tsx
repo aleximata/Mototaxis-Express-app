@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { supabase } from '../lib/supabase'; // Asegúrate de que la ruta a tu cliente de supabase sea correcta
+import { supabase } from '../lib/supabase';
 
 export const FormularioCliente: React.FC = () => {
   const [formData, setFormData] = useState({
     nombre: '',
     telefono: '',
     tipoServicio: 'Carrera Express (Mototaxi)',
-    monto: '3.00', // Valor por defecto inicial
+    monto: '3.00', // Valor por defecto inicial (Carrera Corta)
     bancoEmisor: 'Banesco (0134)',
     cedula: '',
     referencia: '',
@@ -21,7 +21,6 @@ export const FormularioCliente: React.FC = () => {
     setMensajeExito('');
 
     try {
-      // Inserción de datos en la tabla correspondiente de Supabase
       const { error } = await supabase.from('servicios').insert([
         {
           nombre: formData.nombre,
@@ -75,7 +74,7 @@ export const FormularioCliente: React.FC = () => {
             value={formData.nombre}
             onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
             className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-yellow-500 focus:outline-none"
-            placeholder="Ej: Juan Pérez"
+            placeholder="Ej: Carlos Pérez"
             required
           />
         </div>
@@ -88,7 +87,7 @@ export const FormularioCliente: React.FC = () => {
             value={formData.telefono}
             onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
             className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-yellow-500 focus:outline-none"
-            placeholder="Ej: 04128526545"
+            placeholder="Ej: 04141234567"
             required
           />
         </div>
@@ -108,7 +107,7 @@ export const FormularioCliente: React.FC = () => {
 
         {/* Monto (USD) - Selector de Carrera Corta / Larga */}
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">Tipo de Carrera / Monto (USD)</label>
+          <label className="block text-sm font-medium text-gray-300 mb-1">Monto (USD)</label>
           <select
             value={formData.monto}
             onChange={(e) => setFormData({ ...formData, monto: e.target.value })}
@@ -148,7 +147,7 @@ export const FormularioCliente: React.FC = () => {
           />
         </div>
 
-        {/* Útimos Ref. Pago Móvil */}
+        {/* Últimos Ref. Pago Móvil */}
         <div>
           <label className="block text-sm font-medium text-gray-300 mb-1">Últimos Ref. Pago Móvil</label>
           <input
@@ -166,9 +165,9 @@ export const FormularioCliente: React.FC = () => {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-bold py-3 px-4 rounded-lg transition duration-200 mt-4 disabled:opacity-50"
+          className="w-full bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-bold py-3 px-4 rounded-lg transition duration-200 mt-4 disabled:opacity-50 cursor-pointer"
         >
-          {loading ? 'Enviando solicitud...' : 'Solicitar Servicio'}
+          {loading ? 'Enviando solicitud...' : 'Registrar Pago y Solicitar Servicio'}
         </button>
       </form>
     </div>
