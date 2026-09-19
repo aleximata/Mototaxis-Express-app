@@ -35,7 +35,7 @@ export const FormularioCliente: React.FC<FormularioClienteProps> = ({ onVolver, 
             metodo_pago: `Pago Móvil (${formData.bancoEmisor})`,
             cedula_pagador: formData.cedula,
             referencia_pago: formData.referencia,
-            estado: 'PENDIENTE',
+            estado: 'APROBADO', // <-- Actualizado a APROBADO para que aparezca al instante en el PanelMotorizado
           },
         ])
         .select()
