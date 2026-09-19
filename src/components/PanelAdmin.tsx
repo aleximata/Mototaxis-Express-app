@@ -42,14 +42,11 @@ export function PanelAdmin({ onVolver }: { onVolver: () => void }) {
     };
   }, []);
 
-  const actualizarEstado = async (id: string, nuevoEstado: string, motorizadoActual?: string) => {
+  const actualizarEstado = async (id: string, nuevoEstado: string) => {
     try {
-      const payload: any = { estado: nuevoEstado };
-
-      // Si se marca como COMPLETADO desde el admin y no tenía motorizado previo, podemos dejarlo o asignarlo si aplica
       const { error } = await supabase
         .from('ordenes')
-        .update(payload)
+        .update({ estado: nuevoEstado })
         .eq('id', id);
 
       if (!error) {
@@ -62,7 +59,6 @@ export function PanelAdmin({ onVolver }: { onVolver: () => void }) {
     }
   };
 
-  // Función para limpiar/eliminar todas las órdenes y reiniciar pruebas
   const limpiarTodasLasOrdenes = async () => {
     if (!window.confirm('⚠️ ¿Estás seguro de eliminar TODAS las órdenes de la base de datos para reiniciar las pruebas?')) {
       return;
@@ -77,16 +73,7 @@ export function PanelAdmin({ onVolver }: { onVolver: () => void }) {
         setOrdenes([]);
         alert('¡Panel limpiado con éxito para nuevas pruebas!');
       } else {
-        const { error: err2 } = await supabase
-          .from('ordenes')
-          .delete()
-          .gte('id', 0);
-        if (!err2) {
-          setOrdenes([]);
-          alert('¡Panel limpiado con éxito!');
-        } else {
-          alert('Error al limpiar las órdenes. Verifica permisos de Supabase.');
-        }
+        alert('Error al limpiar las órdenes. Verifica permisos de Supabase.');
       }
     } catch (err) {
       console.error(err);
@@ -104,8 +91,6 @@ export function PanelAdmin({ onVolver }: { onVolver: () => void }) {
   return (
     <div className="min-h-screen bg-[#030712] p-4 sm:p-6 font-sans text-slate-100">
       <div className="max-w-6xl mx-auto space-y-6">
-
-        {/* Cabecera del Panel */}
         <div className="bg-slate-900/90 backdrop-blur-2xl border border-slate-800 rounded-3xl p-6 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
             <div className="bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 p-3.5 rounded-2xl shadow-inner">
@@ -116,12 +101,10 @@ export function PanelAdmin({ onVolver }: { onVolver: () => void }) {
               <p className="text-xs text-slate-400">Control de pagos, motorizados asignados y estatus de servicios</p>
             </div>
           </div>
-
           <div className="flex items-center gap-2">
             <button
               onClick={limpiarTodasLasOrdenes}
               className="bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 px-3.5 py-2.5 rounded-xl transition flex items-center gap-1.5 text-xs font-bold cursor-pointer"
-              title="Borrar todas las órdenes para reiniciar pruebas"
             >
               <Trash2 size={14} /> Limpiar Pruebas
             </button>
@@ -134,7 +117,6 @@ export function PanelAdmin({ onVolver }: { onVolver: () => void }) {
           </div>
         </div>
 
-        {/* Botón y Sección de Historial de Servicios Realizados */}
         <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-xs text-slate-300">
             <History size={16} className="text-indigo-400" />
@@ -148,7 +130,6 @@ export function PanelAdmin({ onVolver }: { onVolver: () => void }) {
           </button>
         </div>
 
-        {/* CONTENEDOR DE HISTORIAL (Desplegable) */}
         {mostrarHistorial && (
           <div className="bg-slate-950/90 border border-indigo-500/30 rounded-3xl p-5 space-y-3 shadow-xl">
             <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider">Historial de Servicios Realizados con Éxito</h3>
@@ -167,7 +148,7 @@ export function PanelAdmin({ onVolver }: { onVolver: () => void }) {
                         <span>Tel: {ord.cliente_telefono}</span>
                         <span>•</span>
                         <span className="flex items-center gap-1 text-amber-300 font-bold">
-                          <Bike size={12} /> Motorizado: {ord.motorizado_asignado && ord.motorizado_asignado.trim() !== '' ? ord.motorizado_asignado : 'Asignación Directa / Admin'}
+                          <Bike size={12} /> Motorizado: {ord.motorizado_asignado || 'Asignación Directa'}
                         </span>
                       </div>
                     </div>
@@ -184,7 +165,6 @@ export function PanelAdmin({ onVolver }: { onVolver: () => void }) {
           </div>
         )}
 
-        {/* Filtros de Estado */}
         <div className="flex flex-wrap items-center gap-2 bg-slate-900/60 p-3 border border-slate-800/80 rounded-2xl">
           <span className="text-xs font-bold text-slate-400 px-2">Filtrar activas:</span>
           {(['TODAS', 'PENDIENTE', 'APROBADO', 'EN_CAMINO'] as const).map((f) => (
@@ -202,18 +182,15 @@ export function PanelAdmin({ onVolver }: { onVolver: () => void }) {
           ))}
         </div>
 
-        {/* Listado de Órdenes Activas */}
         <div className="space-y-4">
           {ordenesFiltradas.length === 0 ? (
             <div className="bg-slate-900/50 border border-slate-800/80 rounded-3xl p-16 text-center text-slate-500 text-xs">
-              No hay servicios activos en este filtro. El panel principal se encuentra limpio.
+              No hay servicios activos en este filtro.
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4">
               {ordenesFiltradas.map((orden) => (
                 <div key={orden.id} className="bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
-
-                  {/* Fila superior */}
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
                     <div className="flex items-center gap-3">
                       <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 text-indigo-400">
@@ -229,7 +206,6 @@ export function PanelAdmin({ onVolver }: { onVolver: () => void }) {
                         </p>
                       </div>
                     </div>
-
                     <div className="flex items-center gap-2">
                       {orden.estado === 'PENDIENTE' && (
                         <span className="inline-flex items-center gap-1 bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-bold px-3 py-1 rounded-full">
@@ -249,7 +225,6 @@ export function PanelAdmin({ onVolver }: { onVolver: () => void }) {
                     </div>
                   </div>
 
-                  {/* Detalles */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3 space-y-1">
                       <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
@@ -258,7 +233,6 @@ export function PanelAdmin({ onVolver }: { onVolver: () => void }) {
                       <div className="text-xs text-white font-medium">Método: <span className="text-slate-300">{orden.metodo_pago || 'Pago Móvil'}</span></div>
                       <div className="text-xs font-mono text-indigo-300 font-bold">Ref: {orden.referencia_pago || 'N/A'}</div>
                     </div>
-
                     <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3 space-y-1">
                       <div className="text-[10px] font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1">
                         <Bike size={12} /> Motorizado Asignado
@@ -275,7 +249,6 @@ export function PanelAdmin({ onVolver }: { onVolver: () => void }) {
                         <div className="text-xs text-slate-500 italic pt-1">Ningún motorizado lo ha tomado.</div>
                       )}
                     </div>
-
                     <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3 space-y-1">
                       <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
                         <MapPin size={12} className="text-rose-400" /> Coordenadas GPS
@@ -285,11 +258,9 @@ export function PanelAdmin({ onVolver }: { onVolver: () => void }) {
                       ) : (
                         <div className="text-[10px] text-slate-500 italic">Sin ubicación exacta</div>
                       )}
-                      {orden.detalles && <div className="text-[11px] text-slate-300 truncate">Nota: {orden.detalles}</div>}
                     </div>
                   </div>
 
-                  {/* Acciones */}
                   <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/80">
                     <div className="text-[11px] text-slate-400">Cambiar estatus:</div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -317,13 +288,11 @@ export function PanelAdmin({ onVolver }: { onVolver: () => void }) {
                       </button>
                     </div>
                   </div>
-
                 </div>
               ))}
             </div>
           )}
         </div>
-
       </div>
     </div>
   );

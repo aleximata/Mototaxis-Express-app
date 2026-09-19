@@ -171,8 +171,6 @@ export function PanelMotorizado({ onVolver }: { onVolver: () => void }) {
   return (
     <div className="min-h-screen bg-[#030712] p-4 sm:p-6 font-sans text-slate-100">
       <div className="max-w-4xl mx-auto space-y-6">
-
-        {/* Cabecera y Control */}
         <div className="bg-slate-900/90 backdrop-blur-2xl border border-slate-800 rounded-3xl p-6 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
             <div className="bg-amber-500/15 border border-amber-500/30 text-amber-400 p-3.5 rounded-2xl shadow-inner">
@@ -183,7 +181,6 @@ export function PanelMotorizado({ onVolver }: { onVolver: () => void }) {
               <p className="text-xs text-slate-400">Asignación de servicios y chat directo con el cliente</p>
             </div>
           </div>
-
           <div className="flex items-center gap-2">
             <button
               onClick={limpiarPruebas}
@@ -200,7 +197,6 @@ export function PanelMotorizado({ onVolver }: { onVolver: () => void }) {
           </div>
         </div>
 
-        {/* Configuración de Nombre y Estatus */}
         <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-lg grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
           <div className="space-y-1">
             <label className="text-xs font-bold text-slate-300">Tu Nombre o Alias de Motorizado</label>
@@ -212,7 +208,6 @@ export function PanelMotorizado({ onVolver }: { onVolver: () => void }) {
               className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
             />
           </div>
-
           <div className="flex items-center justify-between sm:justify-end gap-4 pt-2 sm:pt-0">
             <div className="text-right">
               <span className="block text-xs font-bold text-slate-300">Estatus Operativo</span>
@@ -233,7 +228,6 @@ export function PanelMotorizado({ onVolver }: { onVolver: () => void }) {
           </div>
         </div>
 
-        {/* VISTA DE CHAT Y GESTIÓN DE ORDEN ACTIVA */}
         {chatOrden ? (
           <div className="bg-slate-900/95 border border-amber-500/30 rounded-3xl p-6 shadow-2xl space-y-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
@@ -246,7 +240,6 @@ export function PanelMotorizado({ onVolver }: { onVolver: () => void }) {
                   <p className="text-[11px] text-slate-400">Tel: {chatOrden.cliente_telefono} • <span className="text-amber-300 font-semibold">{chatOrden.tipo_servicio}</span></p>
                 </div>
               </div>
-
               <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                 <button
                   onClick={() => finalizarServicio(chatOrden.id)}
@@ -263,11 +256,10 @@ export function PanelMotorizado({ onVolver }: { onVolver: () => void }) {
               </div>
             </div>
 
-            {/* Mensajes de Chat */}
             <div className="h-64 overflow-y-auto bg-slate-950/80 border border-slate-800 rounded-2xl p-4 space-y-3">
               {mensajesChat.length === 0 ? (
                 <div className="h-full flex items-center justify-center text-slate-500 text-xs italic">
-                  No hay mensajes todavía. Saluda al cliente para coordinar la entrega o punto de encuentro.
+                  No hay mensajes todavía. Saluda al cliente para coordinar la entrega.
                 </div>
               ) : (
                 mensajesChat.map((m, idx) => (
@@ -285,7 +277,6 @@ export function PanelMotorizado({ onVolver }: { onVolver: () => void }) {
               )}
             </div>
 
-            {/* Enviar mensaje */}
             <form onSubmit={enviarMensajeChat} className="flex gap-2">
               <input
                 type="text"
@@ -303,10 +294,8 @@ export function PanelMotorizado({ onVolver }: { onVolver: () => void }) {
             </form>
           </div>
         ) : (
-          /* LISTA DE SERVICIOS DISPONIBLES */
           <div className="space-y-4">
             <h2 className="text-sm font-bold text-slate-300 uppercase tracking-wider px-1">Servicios Disponibles en la Zona</h2>
-
             {!activo ? (
               <div className="bg-amber-500/10 border border-amber-500/20 rounded-3xl p-8 text-center text-amber-300 text-xs space-y-2">
                 <ShieldAlert size={24} className="mx-auto" />
@@ -316,13 +305,12 @@ export function PanelMotorizado({ onVolver }: { onVolver: () => void }) {
             ) : (
               listaOrdenesVisibles.length === 0 ? (
                 <div className="bg-slate-900/50 border border-slate-800/80 rounded-3xl p-12 text-center text-slate-500 text-xs">
-                  No hay servicios disponibles o activos para ti en este momento. ¡Buen trabajo!
+                  No hay servicios disponibles o activos para ti en este momento.
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-4">
                   {listaOrdenesVisibles.map((orden) => (
                     <div key={orden.id} className="bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
-
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
                         <div className="flex items-center gap-2.5">
                           <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 text-amber-400">
@@ -335,7 +323,6 @@ export function PanelMotorizado({ onVolver }: { onVolver: () => void }) {
                             </p>
                           </div>
                         </div>
-
                         <div>
                           {orden.estado === 'APROBADO' ? (
                             <span className="inline-flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold px-3 py-1 rounded-full">
@@ -349,12 +336,10 @@ export function PanelMotorizado({ onVolver }: { onVolver: () => void }) {
                         </div>
                       </div>
 
-                      {/* Coordenadas GPS */}
                       <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3.5 space-y-2">
                         <div className="text-[11px] font-bold text-amber-400 flex items-center gap-1.5">
                           <MapPin size={13} /> Ubicación GPS del Usuario
                         </div>
-
                         {orden.latitud && orden.longitud ? (
                           <div className="space-y-2">
                             <div className="font-mono text-[11px] text-slate-300 bg-slate-900 p-2 rounded-lg border border-slate-800">
@@ -381,12 +366,11 @@ export function PanelMotorizado({ onVolver }: { onVolver: () => void }) {
                           </div>
                         ) : (
                           <div className="text-slate-500 text-[11px] italic py-2 text-center">
-                            Esperando coordenadas del cliente...
+                            Esperando coordenadas GPS del cliente...
                           </div>
                         )}
                       </div>
 
-                      {/* Botones de Acción */}
                       <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-slate-800/80">
                         {orden.estado === 'APROBADO' ? (
                           <button
@@ -410,7 +394,6 @@ export function PanelMotorizado({ onVolver }: { onVolver: () => void }) {
                             >
                               <MessageSquare size={14} /> Abrir Chat
                             </button>
-
                             <button
                               onClick={() => finalizarServicio(orden.id)}
                               className="bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-black py-2.5 px-5 rounded-xl transition text-xs flex items-center gap-2 cursor-pointer shadow-md shadow-emerald-600/20"
@@ -420,7 +403,6 @@ export function PanelMotorizado({ onVolver }: { onVolver: () => void }) {
                           </>
                         )}
                       </div>
-
                     </div>
                   ))}
                 </div>
@@ -428,7 +410,6 @@ export function PanelMotorizado({ onVolver }: { onVolver: () => void }) {
             )}
           </div>
         )}
-
       </div>
     </div>
   );

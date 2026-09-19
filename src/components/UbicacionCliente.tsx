@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { MapPin, Navigation, MessageSquare, Clock, CheckCircle2, Bike, Send, Check } from 'lucide-react';
+import { Navigation, MessageSquare, Clock, CheckCircle2, Bike, Send, Check } from 'lucide-react';
 
 export function UbicacionCliente({ ordenId }: { ordenId: string }) {
   const [orden, setOrden] = useState<any>(null);
@@ -8,7 +8,6 @@ export function UbicacionCliente({ ordenId }: { ordenId: string }) {
   const [mensaje, setMensaje] = useState('');
   const [mensajesChat, setMensajesChat] = useState<any[]>([]);
 
-  // Cargar y escuchar cambios en la orden en tiempo real
   useEffect(() => {
     if (!ordenId) return;
 
@@ -46,7 +45,6 @@ export function UbicacionCliente({ ordenId }: { ordenId: string }) {
     };
   }, [ordenId]);
 
-  // Función para compartir ubicación GPS actual del cliente
   const compartirUbicacion = () => {
     if (!navigator.geolocation) {
       alert('Tu navegador no soporta geolocalización.');
@@ -83,7 +81,6 @@ export function UbicacionCliente({ ordenId }: { ordenId: string }) {
     );
   };
 
-  // Enviar mensaje en el chat
   const enviarMensajeChat = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!mensaje.trim() || !orden) return;
@@ -115,7 +112,6 @@ export function UbicacionCliente({ ordenId }: { ordenId: string }) {
 
   return (
     <div className="space-y-4">
-      {/* Estado del pago / orden */}
       <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-4 text-left space-y-3">
         <div className="flex items-center justify-between border-b border-slate-800 pb-2">
           <span className="text-xs font-bold text-slate-400">Estatus Actual:</span>
@@ -141,7 +137,6 @@ export function UbicacionCliente({ ordenId }: { ordenId: string }) {
           )}
         </div>
 
-        {/* Botón para compartir GPS si el pago fue aprobado o está en camino */}
         {(orden.estado === 'APROBADO' || orden.estado === 'EN_CAMINO') && (
           <div className="space-y-2 pt-1">
             <p className="text-[11px] text-slate-300">
@@ -158,7 +153,6 @@ export function UbicacionCliente({ ordenId }: { ordenId: string }) {
         )}
       </div>
 
-      {/* Chat habilitado cuando un motorizado toma la orden (EN_CAMINO) */}
       {orden.estado === 'EN_CAMINO' && (
         <div className="bg-slate-950 border border-blue-500/30 rounded-2xl p-4 space-y-3 text-left">
           <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
