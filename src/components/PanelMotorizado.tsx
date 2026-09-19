@@ -23,12 +23,38 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
   const [mensaje, setMensaje] = useState('');
   const [mensajesChat, setMensajesChat] = useState<any[]>([]);
 
-  const manejarLogin = (e: React.FormEvent) => {
+  // Función para registrar al motorizado como activo en la BD
+  const registrarMotorizadoActivo = async () => {
+    try {
+      const { data: existente } = await supabase
+        .from('motorizados')
+        .select('id')
+        .eq('nombre', nombreMotorizado)
+        .maybeSingle();
+
+      if (existente) {
+        await supabase
+          .from('motorizados')
+          .update({ en_linea: true })
+          .eq('nombre', nombreMotorizado);
+      } else {
+        await supabase
+          .from('motorizados')
+          .insert([{ nombre: nombreMotorizado, en_linea: true }]);
+      }
+    } catch (err) {
+      console.error('Error al registrar estatus activo del motorizado:', err);
+    }
+  };
+
+  const manejarLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (pin === PIN_CORRECTO) {
       sessionStorage.setItem('motorizado_auth', 'true');
       setAutenticado(true);
       setErrorPin(false);
+      // Registramos / activamos al motorizado en la base de datos al entrar
+      await registrarMotorizadoActivo();
     } else {
       setErrorPin(true);
       setPin('');
@@ -48,6 +74,8 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
 
   useEffect(() => {
     if (autenticado) {
+      // Aseguramos que permanezca activo si recarga la página con sesión guardada
+      registrarMotorizadoActivo();
       cargarOrdenes();
 
       const channel = supabase
@@ -111,6 +139,7 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
   const manejarSalida = async () => {
     sessionStorage.removeItem('motorizado_auth');
 
+    // Al cerrar turno, lo ponemos en_linea: false
     await supabase
       .from('motorizados')
       .update({ en_linea: false })
@@ -152,7 +181,7 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
           </div>
           <h2 className="text-xl font-black text-white">Seguridad de Motorizado</h2>
           <p className="text-xs text-slate-400">
-            Ingresa el PIN para acceder como <span className="text-amber-400 font-bold">{nombreMotorizado}</span>.
+            Ingresa el PIN para registrarte activo y acceder como <span className="text-amber-400 font-bold">{nombreMotorizado}</span>.
           </p>
         </div>
 
@@ -180,7 +209,7 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
             type="submit"
             className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-3 px-6 rounded-xl transition text-xs uppercase tracking-wider shadow-lg shadow-blue-600/20 cursor-pointer flex items-center justify-center gap-2"
           >
-            Desbloquear Panel <ArrowRight size={16} />
+            Registrarme y Desbloquear <ArrowRight size={16} />
           </button>
         </form>
 
@@ -206,12 +235,12 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
         <div>
           <h1 className="text-lg font-black text-white">Panel de Motorizado</h1>
           <p className="text-xs text-slate-400">
-            Conectado como: <span className="text-amber-400 font-bold">{nombreMotorizado}</span>
+            Conectado y activo como: <span className="text-amber-400 font-bold">{nombreMotorizado}</span>
           </p>
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
           <div className="bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs px-3 py-1.5 rounded-full font-bold flex items-center gap-1.5">
-            <Bike size={14} /> GPS Activo
+            <Bike size={14} /> Registrado Activo (GPS)
           </div>
           <button
             onClick={manejarSalida}
@@ -227,22 +256,18 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
 
         {listaVisible.length === 0 ? (
           <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-8 text-center text-slate-500 text-xs space-y-2">
-            <p className="text-slate-400 font-bold">¡Tu panel está limpio y libre!</p>
+            <p className="text-slate-400 font-bold">¡Estás activo en el sistema y listo!</p>
             <p className="text-slate-500">Esperando nuevos servicios aprobados para tomar.</p>
           </div>
         ) : (
           listaVisible.map((orden) => {
-            // Verificamos si la orden trae latitud y longitud (coordenadas GPS)
             const tieneLatLon = (orden.latitud !== undefined && orden.latitud !== null && orden.longitud !== undefined && orden.longitud !== null) ||
                                 (orden.lat !== undefined && orden.lat !== null && orden.lng !== undefined && orden.lng !== null);
 
             const latVal = orden.latitud ?? orden.lat;
             const lonVal = orden.longitud ?? orden.lng;
-
-            // Texto de dirección alternativo
             const direccionTexto = orden.direccion || orden.ubicacion || orden.destino || orden.punto_llegada || orden.detalles || '';
 
-            // URL inteligente para Google Maps (Si hay coordenadas, usa lat,lng; si hay texto, usa el texto; si no hay nada, usa el nombre del cliente)
             let googleMapsUrl = '';
             let etiquetaUbicacion = '';
 
@@ -276,7 +301,6 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
                   </div>
                 </div>
 
-                {/* BOTÓN DE GOOGLE MAPS Y UBICACIÓN GPS */}
                 <div className="bg-slate-950/80 border border-slate-800 p-3.5 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
                   <div className="flex items-start gap-2 text-slate-300">
                     {tieneLatLon ? (
@@ -352,7 +376,7 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
                             orden.chat_mensajes.map((m: any, idx: number) => (
                               <div key={idx} className={`flex flex-col ${m.remitente === 'motorizado' ? 'items-end' : 'items-start'}`}>
                                 <div className={`max-w-[75%] rounded-xl px-3 py-1.5 text-xs ${
-                                  m.remitenter === 'motorizado'
+                                  m.remitente === 'motorizado'
                                     ? 'bg-amber-500 text-slate-950 font-medium'
                                     : 'bg-slate-800 text-slate-200 border border-slate-700'
                                 }`}>
