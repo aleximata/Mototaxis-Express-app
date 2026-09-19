@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { MessageSquare, Navigation, Bike, CheckCircle2, LogOut, Lock, AlertCircle, ArrowRight, MapPin, Phone, User } from 'lucide-react';
+import { MessageSquare, Navigation, Bike, CheckCircle2, LogOut, Lock, AlertCircle, ArrowRight, MapPin, Phone, User, Compass } from 'lucide-react';
 
 interface PanelMotorizadoProps {
   nombreMotorizado: string;
@@ -143,7 +143,6 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
       .eq('id', ordenId);
   };
 
-  // Si no está autenticado, mostramos el login con PIN
   if (!autenticado) {
     return (
       <div className="max-w-md mx-auto mt-10 bg-slate-900/90 backdrop-blur-2xl border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6 text-white">
@@ -233,9 +232,30 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
           </div>
         ) : (
           listaVisible.map((orden) => {
-            // Extracción inteligente y robusta de la ubicación desde cualquier propiedad posible de la orden
-            const ubicacionReal = orden.direccion || orden.ubicacion || orden.destino || orden.punto_llegada || orden.detalles || '';
-            const queryMap = ubicacionReal.trim() !== '' ? ubicacionReal : `Cliente ${orden.cliente_nombre}`;
+            // Verificamos si la orden trae latitud y longitud (coordenadas GPS)
+            const tieneLatLon = (orden.latitud !== undefined && orden.latitud !== null && orden.longitud !== undefined && orden.longitud !== null) ||
+                                (orden.lat !== undefined && orden.lat !== null && orden.lng !== undefined && orden.lng !== null);
+
+            const latVal = orden.latitud ?? orden.lat;
+            const lonVal = orden.longitud ?? orden.lng;
+
+            // Texto de dirección alternativo
+            const direccionTexto = orden.direccion || orden.ubicacion || orden.destino || orden.punto_llegada || orden.detalles || '';
+
+            // URL inteligente para Google Maps (Si hay coordenadas, usa lat,lng; si hay texto, usa el texto; si no hay nada, usa el nombre del cliente)
+            let googleMapsUrl = '';
+            let etiquetaUbicacion = '';
+
+            if (tieneLatLon) {
+              googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${latVal},${lonVal}`;
+              etiquetaUbicacion = `Coordenadas GPS (Lat: ${latVal}, Lon: ${lonVal})`;
+            } else if (direccionTexto.trim() !== '') {
+              googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(direccionTexto)}`;
+              etiquetaUbicacion = direccionTexto;
+            } else {
+              googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(orden.cliente_nombre)}`;
+              etiquetaUbicacion = `⚠️ Ubicación por nombre (${orden.cliente_nombre})`;
+            }
 
             return (
               <div key={orden.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
@@ -256,19 +276,23 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
                   </div>
                 </div>
 
-                {/* BOTÓN DE GOOGLE MAPS Y UBICACIÓN */}
+                {/* BOTÓN DE GOOGLE MAPS Y UBICACIÓN GPS */}
                 <div className="bg-slate-950/80 border border-slate-800 p-3.5 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
                   <div className="flex items-start gap-2 text-slate-300">
-                    <MapPin size={16} className="text-rose-400 shrink-0 mt-0.5" />
+                    {tieneLatLon ? (
+                      <Compass size={16} className="text-amber-400 shrink-0 mt-0.5 animate-spin" />
+                    ) : (
+                      <MapPin size={16} className="text-rose-400 shrink-0 mt-0.5" />
+                    )}
                     <div>
-                      <strong className="text-white block">Dirección de entrega:</strong>
-                      <span className={ubicacionReal ? 'text-slate-300 font-medium' : 'text-amber-400 italic'}>
-                        {ubicacionReal ? ubicacionReal : '⚠️ No especificada (Preguntar por chat o llamada)'}
+                      <strong className="text-white block">Ubicación de entrega:</strong>
+                      <span className={tieneLatLon || direccionTexto ? 'text-amber-300 font-mono font-bold' : 'text-amber-400 italic'}>
+                        {etiquetaUbicacion}
                       </span>
                     </div>
                   </div>
                   <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(queryMap)}`}
+                    href={googleMapsUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="bg-blue-600 hover:bg-blue-500 text-white border border-blue-400/40 px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1.5 shrink-0 shadow-md cursor-pointer"
@@ -328,7 +352,7 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
                             orden.chat_mensajes.map((m: any, idx: number) => (
                               <div key={idx} className={`flex flex-col ${m.remitente === 'motorizado' ? 'items-end' : 'items-start'}`}>
                                 <div className={`max-w-[75%] rounded-xl px-3 py-1.5 text-xs ${
-                                  m.remitente === 'motorizado'
+                                  m.remitenter === 'motorizado'
                                     ? 'bg-amber-500 text-slate-950 font-medium'
                                     : 'bg-slate-800 text-slate-200 border border-slate-700'
                                 }`}>
