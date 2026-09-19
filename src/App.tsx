@@ -1,118 +1,116 @@
-import React, { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
-import { Users, UserPlus, ShieldCheck, Circle } from 'lucide-react';
+import React, { useState } from 'react';
+import { supabase } from './lib/supabase';
+import { FormularioCliente } from './components/FormularioCliente';
+import { UbicacionCliente } from './components/UbicacionCliente';
+import { PanelAdmin } from './components/PanelAdmin';
+import { LoginAdmin } from './components/LoginAdmin';
+import { PanelMotorizado } from './components/PanelMotorizado';
+import { Shield, Bike, CheckCircle2, ArrowRight, Navigation } from 'lucide-react';
 
-export function ControlMotorizadosAdmin() {
-  const [motorizados, setMotorizados] = useState<any[]>([]);
-  const [nombreNuevo, setNombreNuevo] = useState('');
-  const [codigoNuevo, setCodigoNuevo] = useState('');
+export function App() {
+  const [vista, setVista] = useState<'inicio' | 'cliente' | 'exito' | 'login_admin' | 'admin' | 'motorizado'>('inicio');
+  const [ordenActivaId, setOrdenActivaId] = useState<string>('');
 
-  const cargarMotorizados = async () => {
-    const { data } = await supabase.from('motorizados').select('*');
-    if (data) setMotorizados(data);
+  const cerrarSesionAdmin = () => {
+    sessionStorage.removeItem('admin_auth');
+    setVista('inicio');
   };
-
-  useEffect(() => {
-    cargarMotorizados();
-
-    const channel = supabase
-      .channel('admin_motorizados_cambios')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'motorizados' }, () => {
-        cargarMotorizados();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  const registrarMotorizado = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!nombreNuevo || !codigoNuevo) return;
-
-    const { error } = await supabase.from('motorizados').insert([
-      { nombre: nombreNuevo.trim(), codigo: codigoNuevo.trim().toUpperCase(), en_linea: false }
-    ]);
-
-    if (error) {
-      alert('Error al registrar (es posible que el código ya exista).');
-    } else {
-      setNombreNuevo('');
-      setCodigoNuevo('');
-      alert('Motorizado registrado con éxito.');
-      cargarMotorizados();
-    }
-  };
-
-  const motorizadosEnLinea = motorizados.filter((m) => m.en_linea).length;
 
   return (
-    <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-xl space-y-6 text-white mb-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-base font-black flex items-center gap-2">
-            <Users size={18} className="text-amber-400" /> Control de Motorizados
-          </h2>
-          <p className="text-xs text-slate-400">Gestiona accesos y monitorea personal activo</p>
-        </div>
-        <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs px-3 py-1.5 rounded-full font-bold flex items-center gap-2">
-          <Circle size={8} className="fill-emerald-400 animate-pulse" />
-          {motorizadosEnLinea} Motorizados en Línea
-        </div>
-      </div>
-
-      <form onSubmit={registrarMotorizado} className="bg-slate-950 border border-slate-800 p-4 rounded-2xl flex flex-col sm:flex-row gap-3 items-end">
-        <div className="flex-1 w-full">
-          <label className="block text-[10px] font-bold text-slate-400 mb-1">Nombre del Motorizado</label>
-          <input
-            type="text"
-            value={nombreNuevo}
-            onChange={(e) => setNombreNuevo(e.target.value)}
-            placeholder="Ej: Carlos Pérez"
-            className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
-            required
-          />
-        </div>
-        <div className="w-full sm:w-40">
-          <label className="block text-[10px] font-bold text-slate-400 mb-1">Código Asignado</label>
-          <input
-            type="text"
-            value={codigoNuevo}
-            onChange={(e) => setCodigoNuevo(e.target.value)}
-            placeholder="Ej: MOT-001"
-            className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-xs text-white uppercase font-mono focus:outline-none focus:border-amber-500"
-            required
-          />
-        </div>
-        <button
-          type="submit"
-          className="w-full sm:w-auto bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-4 py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
-        >
-          <UserPlus size={14} /> Registrar
-        </button>
-      </form>
-
-      <div className="space-y-2">
-        <h3 className="text-xs font-bold text-slate-400">Personal Registrado:</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {motorizados.map((m) => (
-            <div key={m.id} className="bg-slate-950 border border-slate-800 p-3.5 rounded-2xl flex justify-between items-center">
-              <div>
-                <div className="font-bold text-xs text-white">{m.nombre}</div>
-                <div className="text-[10px] text-slate-400 font-mono">Código: {m.codigo}</div>
-              </div>
-              <div className={`text-[10px] font-bold px-2.5 py-1 rounded-full border flex items-center gap-1.5 ${
-                m.en_linea 
-                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' 
-                  : 'bg-slate-800/50 border-slate-700 text-slate-500'
-              }`}>
-                <ShieldCheck size={12} /> {m.en_linea ? 'En Línea' : 'Desconectado'}
-              </div>
+    <div className="min-h-screen bg-[#030712] text-slate-100 flex flex-col justify-between selection:bg-amber-500 selection:text-slate-950">
+      <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6">
+        {vista === 'inicio' && (
+          <div className="max-w-md w-full bg-slate-900/90 backdrop-blur-2xl border border-slate-800 rounded-3xl p-8 shadow-2xl text-center space-y-6">
+            <div className="w-20 h-20 bg-amber-500/10 border border-amber-500/20 rounded-3xl flex items-center justify-center mx-auto text-amber-400 shadow-inner animate-pulse">
+              <Bike size={40} />
             </div>
-          ))}
-        </div>
-      </div>
+            <div className="space-y-2">
+              <h1 className="text-2xl font-black tracking-tight text-white">Moto Express & Encomiendas</h1>
+              <p className="text-xs text-slate-400">Servicio de transporte rápido, delivery y encomiendas en tiempo real.</p>
+            </div>
+            <div className="space-y-3 pt-2">
+              <button
+                onClick={() => setVista('cliente')}
+                className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-3.5 px-6 rounded-2xl transition text-xs uppercase tracking-wider shadow-lg shadow-amber-500/20 cursor-pointer flex items-center justify-center gap-2 group"
+              >
+                Solicitar Servicio <ArrowRight size={16} className="group-hover:translate-x-1 transition" />
+              </button>
+              <button
+                onClick={() => setVista('motorizado')}
+                className="w-full bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 font-bold py-3 px-6 rounded-2xl border border-blue-500/30 transition text-xs flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Navigation size={15} /> Portal de Motorizados
+              </button>
+              <button
+                onClick={() => {
+                  const autenticado = sessionStorage.getItem('admin_auth') === 'true';
+                  setVista(autenticado ? 'admin' : 'login_admin');
+                }}
+                className="w-full bg-slate-800/80 hover:bg-slate-800 text-slate-300 font-bold py-3 px-6 rounded-2xl border border-slate-700/80 transition text-xs flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Shield size={15} className="text-amber-400" /> Panel de Administrador
+              </button>
+            </div>
+          </div>
+        )}
+
+        {vista === 'cliente' && (
+          <div className="w-full max-w-xl">
+            <FormularioCliente
+              onVolver={() => setVista('inicio')}
+              onOrdenCreada={(id) => {
+                setOrdenActivaId(id);
+                setVista('exito');
+              }}
+            />
+          </div>
+        )}
+
+        {vista === 'exito' && (
+          <div className="max-w-md w-full bg-slate-900/90 backdrop-blur-2xl border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 text-center">
+            <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-center mx-auto text-emerald-400">
+              <CheckCircle2 size={32} />
+            </div>
+            <div className="space-y-1">
+              <h2 className="text-xl font-black text-white">¡Solicitud Registrada!</h2>
+              <p className="text-xs text-slate-400">Tu pago móvil ha sido enviado para verificación. Esta pantalla se actualizará cuando el administrador lo apruebe.</p>
+            </div>
+            <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 text-left">
+              <UbicacionCliente ordenId={ordenActivaId} />
+            </div>
+            <button
+              onClick={() => setVista('inicio')}
+              className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-3 rounded-xl border border-slate-700 transition text-xs cursor-pointer"
+            >
+              Volver al Inicio
+            </button>
+          </div>
+        )}
+
+        {vista === 'login_admin' && (
+          <LoginAdmin
+            onLoginSuccess={() => setVista('admin')}
+            onVolver={() => setVista('inicio')}
+          />
+        )}
+
+        {vista === 'admin' && (
+          <div className="w-full">
+            <PanelAdmin onVolver={cerrarSesionAdmin} />
+          </div>
+        )}
+
+        {vista === 'motorizado' && (
+          <div className="w-full">
+            <PanelMotorizado onVolver={() => setVista('inicio')} />
+          </div>
+        )}
+      </main>
+      <footer className="py-4 text-center text-[10px] text-slate-600 font-medium">
+        Moto Express Global &copy; 2026 — Todos los derechos reservados.
+      </footer>
     </div>
   );
 }
+
+export default App;
