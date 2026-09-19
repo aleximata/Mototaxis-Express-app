@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { MessageSquare, Navigation, Bike } from 'lucide-react';
 
@@ -26,7 +26,6 @@ export function PanelMotorizado({ nombreMotorizado }: PanelMotorizadoProps) {
   useEffect(() => {
     cargarOrdenes();
 
-    // Suscripción en tiempo real con Supabase
     const channel = supabase
       .channel('motorizado_ordenes_cambios')
       .on(
@@ -44,7 +43,6 @@ export function PanelMotorizado({ nombreMotorizado }: PanelMotorizadoProps) {
     };
   }, []);
 
-  // El motorizado acepta una orden APROBADA y pasa a EN_CAMINO
   const aceptarServicioAprobado = async (ordenId: string) => {
     const { error } = await supabase
       .from('ordenes')
@@ -58,14 +56,12 @@ export function PanelMotorizado({ nombreMotorizado }: PanelMotorizadoProps) {
       console.error('Error al tomar el servicio:', error);
       alert('No se pudo aceptar el servicio.');
     } else {
-      // Abre el chat automáticamente al aceptar el servicio
       setChatActivoId(ordenId);
       const ordenActual = ordenes.find((o) => o.id === ordenId);
       setMensajesChat(ordenActual?.chat_mensajes || []);
     }
   };
 
-  // Enviar mensaje en el chat en tiempo real
   const enviarMensajeChat = async (e: React.FormEvent, ordenId: string) => {
     e.preventDefault();
     if (!mensaje.trim()) return;
@@ -90,8 +86,6 @@ export function PanelMotorizado({ nombreMotorizado }: PanelMotorizadoProps) {
       .eq('id', ordenId);
   };
 
-  // FILTRO CLAVE: El motorizado solo ve las APROBADAS (libres para tomar)
-  // o las EN_CAMINO que él mismo haya tomado. Ignora las PENDIENTES (del administrador).
   const listaVisible = ordenes.filter(
     (o) =>
       o.estado === 'APROBADO' ||
@@ -135,7 +129,6 @@ export function PanelMotorizado({ nombreMotorizado }: PanelMotorizadoProps) {
                 </div>
               </div>
 
-              {/* Si está APROBADO: Muestra el botón para que el motorizado lo tome */}
               {orden.estado === 'APROBADO' && (
                 <button
                   onClick={() => aceptarServicioAprobado(orden.id)}
@@ -145,7 +138,6 @@ export function PanelMotorizado({ nombreMotorizado }: PanelMotorizadoProps) {
                 </button>
               )}
 
-              {/* Si ya está EN_CAMINO y es de este motorizado: Muestra indicador y chat en vivo */}
               {orden.estado === 'EN_CAMINO' && (
                 <div className="space-y-4 border-t border-slate-800 pt-4">
                   <div className="flex items-center justify-between">
@@ -163,7 +155,6 @@ export function PanelMotorizado({ nombreMotorizado }: PanelMotorizadoProps) {
                     </button>
                   </div>
 
-                  {/* Caja del Chat en Tiempo Real */}
                   {chatActivoId === orden.id && (
                     <div className="bg-slate-950 border border-amber-500/30 rounded-2xl p-4 space-y-3">
                       <div className="text-xs font-bold text-slate-300 border-b border-slate-800 pb-2">
