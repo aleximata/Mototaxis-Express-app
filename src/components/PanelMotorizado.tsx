@@ -2,12 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { MessageSquare, Navigation, Bike, CheckCircle2, LogOut, Lock, AlertCircle, ArrowRight, MapPin, Phone, User, Compass } from 'lucide-react';
 
-interface PanelMotorizadoProps {
-  nombreMotorizado: string;
-  onCerrarSesion: () => void;
-}
+export function PanelMotorizado() {
+  // Estado para el nombre que introduce el motorizado
+  const [nombreInput, setNombreInput] = useState('');
+  const [nombreMotorizado, setNombreMotorizado] = useState<string>(() => {
+    return sessionStorage.getItem('motorizado_nombre') || '';
+  });
 
-export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotorizadoProps) {
   // Estados de Autenticación con PIN
   const [autenticado, setAutenticado] = useState<boolean>(() => {
     return sessionStorage.getItem('motorizado_auth') === 'true';
@@ -24,37 +25,46 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
   const [mensajesChat, setMensajesChat] = useState<any[]>([]);
 
   // Función para registrar al motorizado como activo en la BD
-  const registrarMotorizadoActivo = async () => {
+  const registrarMotorizadoActivo = async (nombre: string) => {
     try {
       const { data: existente } = await supabase
         .from('motorizados')
         .select('id')
-        .eq('nombre', nombreMotorizado)
+        .eq('nombre', nombre)
         .maybeSingle();
 
       if (existente) {
         await supabase
           .from('motorizados')
           .update({ en_linea: true })
-          .eq('nombre', nombreMotorizado);
+          .eq('nombre', nombre);
       } else {
         await supabase
           .from('motorizados')
-          .insert([{ nombre: nombreMotorizado, en_linea: true }]);
+          .insert([{ nombre: nombre, en_linea: true }]);
       }
     } catch (err) {
       console.error('Error al registrar estatus activo del motorizado:', err);
     }
   };
 
+  // Paso 1: Cuando el motorizado ingresa su nombre
+  const manejarIngresoNombre = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!nombreInput.trim()) return;
+    const nombreLimpio = nombreInput.trim();
+    setNombreMotorizado(nombreLimpio);
+    sessionStorage.setItem('motorizado_nombre', nombreLimpio);
+  };
+
+  // Paso 2: Cuando ingresa el PIN correcto
   const manejarLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (pin === PIN_CORRECTO) {
       sessionStorage.setItem('motorizado_auth', 'true');
       setAutenticado(true);
       setErrorPin(false);
-      // Registramos / activamos al motorizado en la base de datos al entrar
-      await registrarMotorizadoActivo();
+      await registrarMotorizadoActivo(nombreMotorizado);
     } else {
       setErrorPin(true);
       setPin('');
@@ -73,9 +83,8 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
   };
 
   useEffect(() => {
-    if (autenticado) {
-      // Aseguramos que permanezca activo si recarga la página con sesión guardada
-      registrarMotorizadoActivo();
+    if (autenticado && nombreMotorizado) {
+      registrarMotorizadoActivo(nombreMotorizado);
       cargarOrdenes();
 
       const channel = supabase
@@ -93,14 +102,14 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
         supabase.removeChannel(channel);
       };
     }
-  }, [autenticado]);
+  }, [autenticado, nombreMotorizado]);
 
   const aceptarServicioAprobado = async (ordenId: string) => {
     const { error } = await supabase
       .from('ordenes')
       .update({
         estado: 'EN_CAMINO',
-        motorizado_asignado: nombreMotorizado,
+        motorizado_asignado: nombreMotorizado, // Aquí se guarda el nombre exacto para que el admin lo vea
       })
       .eq('id', ordenId);
 
@@ -137,15 +146,18 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
   };
 
   const manejarSalida = async () => {
+    if (nombreMotorizado) {
+      await supabase
+        .from('motorizados')
+        .update({ en_linea: false })
+        .eq('nombre', nombreMotorizado);
+    }
+
     sessionStorage.removeItem('motorizado_auth');
-
-    // Al cerrar turno, lo ponemos en_linea: false
-    await supabase
-      .from('motorizados')
-      .update({ en_linea: false })
-      .eq('nombre', nombreMotorizado);
-
-    onCerrarSesion();
+    sessionStorage.removeItem('motorizado_nombre');
+    setAutenticado(false);
+    setNombreMotorizado('');
+    setNombreInput('');
   };
 
   const enviarMensajeChat = async (e: React.FormEvent, ordenId: string) => {
@@ -172,6 +184,44 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
       .eq('id', ordenId);
   };
 
+  // PANTALLA 1: Pedir Nombre si no lo ha escrito
+  if (!nombreMotorizado) {
+    return (
+      <div className="max-w-md mx-auto mt-10 bg-slate-900/90 backdrop-blur-2xl border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6 text-white">
+        <div className="text-center space-y-2">
+          <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center mx-auto text-amber-400">
+            <Bike size={30} />
+          </div>
+          <h2 className="text-xl font-black text-white">Identificación de Motorizado</h2>
+          <p className="text-xs text-slate-400">Ingresa tu nombre o alias para registrarte en el sistema.</p>
+        </div>
+
+        <form onSubmit={manejarIngresoNombre} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Tu Nombre</label>
+            <input
+              type="text"
+              value={nombreInput}
+              onChange={(e) => setNombreInput(e.target.value)}
+              placeholder="Ej. Carlos"
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-center text-white focus:outline-none focus:border-amber-500 transition"
+              required
+              autoFocus
+            />
+          </div>
+
+          <button
+            type="submit"
+            className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-3 px-6 rounded-xl transition text-xs uppercase tracking-wider shadow-lg shadow-amber-500/20 cursor-pointer flex items-center justify-center gap-2"
+          >
+            Continuar al PIN <ArrowRight size={16} />
+          </button>
+        </form>
+      </div>
+    );
+  }
+
+  // PANTALLA 2: Pedir PIN de seguridad
   if (!autenticado) {
     return (
       <div className="max-w-md mx-auto mt-10 bg-slate-900/90 backdrop-blur-2xl border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6 text-white">
@@ -181,7 +231,7 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
           </div>
           <h2 className="text-xl font-black text-white">Seguridad de Motorizado</h2>
           <p className="text-xs text-slate-400">
-            Ingresa el PIN para registrarte activo y acceder como <span className="text-amber-400 font-bold">{nombreMotorizado}</span>.
+            Registrado como: <span className="text-amber-400 font-bold">{nombreMotorizado}</span>. Ingresa tu PIN.
           </p>
         </div>
 
@@ -209,15 +259,15 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
             type="submit"
             className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-3 px-6 rounded-xl transition text-xs uppercase tracking-wider shadow-lg shadow-blue-600/20 cursor-pointer flex items-center justify-center gap-2"
           >
-            Registrarme y Desbloquear <ArrowRight size={16} />
+            Activarme y Desbloquear <ArrowRight size={16} />
           </button>
         </form>
 
         <button
-          onClick={onCerrarSesion}
+          onClick={() => setNombreMotorizado('')}
           className="w-full bg-slate-800/60 hover:bg-slate-800 text-slate-400 font-bold py-2.5 rounded-xl border border-slate-700/60 transition text-xs cursor-pointer"
         >
-          Volver
+          Cambiar Nombre
         </button>
       </div>
     );
@@ -235,12 +285,12 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
         <div>
           <h1 className="text-lg font-black text-white">Panel de Motorizado</h1>
           <p className="text-xs text-slate-400">
-            Conectado y activo como: <span className="text-amber-400 font-bold">{nombreMotorizado}</span>
+            Conectado como: <span className="text-amber-400 font-bold">{nombreMotorizado}</span>
           </p>
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
           <div className="bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs px-3 py-1.5 rounded-full font-bold flex items-center gap-1.5">
-            <Bike size={14} /> Registrado Activo (GPS)
+            <Bike size={14} /> Activo (GPS)
           </div>
           <button
             onClick={manejarSalida}
