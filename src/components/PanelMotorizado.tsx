@@ -145,7 +145,7 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
       .eq('id', ordenId);
   };
 
-  // Si no está autenticado, mostramos el login con PIN
+  // Si não está autenticado, mostramos el login con PIN
   if (!autenticado) {
     return (
       <div className="max-w-md mx-auto mt-10 bg-slate-900/90 backdrop-blur-2xl border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6 text-white">
@@ -253,7 +253,7 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
                 </div>
               </div>
 
-              {/* Botón de Dirección con Enlace a Google Maps */}
+              {/* Botón de Dirección con Enlace a Google Maps para Ruta en Vivo */}
               {orden.direccion && (
                 <div className="bg-slate-950/60 border border-slate-800 p-3 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
                   <div className="flex items-start gap-2 text-slate-300">
@@ -261,12 +261,12 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
                     <span><strong>Dirección:</strong> {orden.direccion}</span>
                   </div>
                   <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(orden.direccion)}`}
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(orden.direccion)}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 shrink-0"
                   >
-                    <Navigation size={13} /> Abrir en Google Maps
+                    <Navigation size={13} /> Ir con Google Maps
                   </a>
                 </div>
               )}
