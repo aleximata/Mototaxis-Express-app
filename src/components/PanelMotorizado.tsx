@@ -109,10 +109,8 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
   };
 
   const manejarSalida = async () => {
-    // Limpiar autenticación local de motorizado
     sessionStorage.removeItem('motorizado_auth');
 
-    // Cambiar estatus a fuera de línea en Supabase si aplica la tabla
     await supabase
       .from('motorizados')
       .update({ en_linea: false })
@@ -145,7 +143,6 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
       .eq('id', ordenId);
   };
 
-  // Si não está autenticado, mostramos el login con PIN
   if (!autenticado) {
     return (
       <div className="max-w-md mx-auto mt-10 bg-slate-900/90 backdrop-blur-2xl border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6 text-white">
@@ -214,7 +211,7 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
           <div className="bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs px-3 py-1.5 rounded-full font-bold flex items-center gap-1.5">
-            <Bike size={14} /> En línea (Protegido)
+            <Bike size={14} /> GPS Activo
           </div>
           <button
             onClick={manejarSalida}
@@ -234,127 +231,136 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
             <p className="text-slate-500">Esperando nuevos servicios aprobados para tomar.</p>
           </div>
         ) : (
-          listaVisible.map((orden) => (
-            <div key={orden.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="font-black text-sm text-white flex items-center gap-1.5">
-                    <User size={14} className="text-blue-400" /> {orden.cliente_nombre}
-                  </h3>
-                  <p className="text-xs text-slate-400 pt-1 flex items-center gap-2">
-                    <span className="flex items-center gap-1"><Phone size={12} className="text-emerald-400" /> {orden.cliente_telefono}</span>
-                    <span>|</span>
-                    <span>🛵 {orden.tipo_servicio}</span>
-                  </p>
-                </div>
-                <div className="text-right">
-                  <span className="text-emerald-400 font-black text-sm">${orden.monto}</span>
-                  <div className="text-[10px] text-slate-400 font-mono">Ref: {orden.referencia_pago}</div>
-                </div>
-              </div>
+          listaVisible.map((orden) => {
+            // Definir destino de Google Maps de forma inteligente
+            const direccionTexto = orden.direccion || orden.ubicacion || '';
+            const queryMap = direccionTexto.trim() !== '' ? direccionTexto : `Cliente ${orden.cliente_nombre}`;
 
-              {/* Botón de Dirección con Enlace a Google Maps para Ruta en Vivo */}
-              {orden.direccion && (
-                <div className="bg-slate-950/60 border border-slate-800 p-3 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+            return (
+              <div key={orden.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-black text-sm text-white flex items-center gap-1.5">
+                      <User size={14} className="text-blue-400" /> {orden.cliente_nombre}
+                    </h3>
+                    <p className="text-xs text-slate-400 pt-1 flex items-center gap-2">
+                      <span className="flex items-center gap-1"><Phone size={12} className="text-emerald-400" /> {orden.cliente_telefono}</span>
+                      <span>|</span>
+                      <span>🛵 {orden.tipo_servicio}</span>
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-emerald-400 font-black text-sm">${orden.monto}</span>
+                    <div className="text-[10px] text-slate-400 font-mono">Ref: {orden.referencia_pago}</div>
+                  </div>
+                </div>
+
+                {/* BLOQUE DE UBICACIÓN Y GOOGLE MAPS GARANTIZADO */}
+                <div className="bg-slate-950/80 border border-slate-800 p-3.5 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
                   <div className="flex items-start gap-2 text-slate-300">
                     <MapPin size={16} className="text-rose-400 shrink-0 mt-0.5" />
-                    <span><strong>Dirección:</strong> {orden.direccion}</span>
+                    <div>
+                      <strong className="text-white block">Dirección de entrega:</strong>
+                      <span className={orden.direccion ? 'text-slate-300' : 'text-amber-400 italic'}>
+                        {orden.direccion ? orden.direccion : '⚠️ No especificada (Preguntar por chat o llamada)'}
+                      </span>
+                    </div>
                   </div>
                   <a
-                    href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(orden.direccion)}`}
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(queryMap)}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 shrink-0"
+                    className="bg-blue-600 hover:bg-blue-500 text-white border border-blue-400/40 px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1.5 shrink-0 shadow-md cursor-pointer"
                   >
-                    <Navigation size={13} /> Ir con Google Maps
+                    <Navigation size={14} /> Abrir en Google Maps
                   </a>
                 </div>
-              )}
 
-              {orden.estado === 'APROBADO' && (
-                <button
-                  onClick={() => aceptarServicioAprobado(orden.id)}
-                  className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-2.5 px-4 rounded-xl text-xs uppercase tracking-wider transition cursor-pointer shadow-md"
-                >
-                  Aceptar Servicio y Salir en Camino
-                </button>
-              )}
+                {orden.estado === 'APROBADO' && (
+                  <button
+                    onClick={() => aceptarServicioAprobado(orden.id)}
+                    className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-2.5 px-4 rounded-xl text-xs uppercase tracking-wider transition cursor-pointer shadow-md"
+                  >
+                    Aceptar Servicio y Salir en Camino
+                  </button>
+                )}
 
-              {orden.estado === 'EN_CAMINO' && (
-                <div className="space-y-4 border-t border-slate-800 pt-4">
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-                    <span className="bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold px-3 py-1.5 rounded-full inline-flex items-center gap-1.5">
-                      <Navigation size={14} /> En camino a entregar pedido
-                    </span>
+                {orden.estado === 'EN_CAMINO' && (
+                  <div className="space-y-4 border-t border-slate-800 pt-4">
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                      <span className="bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold px-3 py-1.5 rounded-full inline-flex items-center gap-1.5">
+                        <Navigation size={14} /> En camino a entregar pedido
+                      </span>
 
-                    <div className="flex items-center gap-2 w-full sm:w-auto">
-                      <button
-                        onClick={() => {
-                          setChatActivoId(chatActivoId === orden.id ? null : orden.id);
-                          setMensajesChat(orden.chat_mensajes || []);
-                        }}
-                        className="flex-1 sm:flex-none bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 text-xs font-bold px-4 py-2 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer"
-                      >
-                        <MessageSquare size={14} /> {chatActivoId === orden.id ? 'Ocultar Chat' : 'Chat'}
-                      </button>
-
-                      <button
-                        onClick={() => concluirServicio(orden.id)}
-                        className="flex-1 sm:flex-none bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black px-4 py-2 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
-                      >
-                        <CheckCircle2 size={14} /> Concluir Servicio
-                      </button>
-                    </div>
-                  </div>
-
-                  {chatActivoId === orden.id && (
-                    <div className="bg-slate-950 border border-amber-500/30 rounded-2xl p-4 space-y-3">
-                      <div className="text-xs font-bold text-slate-300 border-b border-slate-800 pb-2">
-                        Chat en vivo con {orden.cliente_nombre}
-                      </div>
-
-                      <div className="h-48 overflow-y-auto space-y-2 pr-2">
-                        {(!orden.chat_mensajes || orden.chat_mensajes.length === 0) ? (
-                          <div className="h-full flex items-center justify-center text-slate-600 text-xs italic">
-                            Inicia la conversación con el cliente...
-                          </div>
-                        ) : (
-                          orden.chat_mensajes.map((m: any, idx: number) => (
-                            <div key={idx} className={`flex flex-col ${m.remitente === 'motorizado' ? 'items-end' : 'items-start'}`}>
-                              <div className={`max-w-[75%] rounded-xl px-3 py-1.5 text-xs ${
-                                m.remitente === 'motorizado'
-                                  ? 'bg-amber-500 text-slate-950 font-medium'
-                                  : 'bg-slate-800 text-slate-200 border border-slate-700'
-                              }`}>
-                                <div className="text-[9px] opacity-75 font-bold">{m.autor} • {m.hora}</div>
-                                <div>{m.texto}</div>
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-
-                      <form onSubmit={(e) => enviarMensajeChat(e, orden.id)} className="flex gap-2">
-                        <input
-                          type="text"
-                          value={mensaje}
-                          onChange={(e) => setMensaje(e.target.value)}
-                          placeholder="Escribe al cliente..."
-                          className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
-                        />
+                      <div className="flex items-center gap-2 w-full sm:w-auto">
                         <button
-                          type="submit"
-                          className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs transition cursor-pointer"
+                          onClick={() => {
+                            setChatActivoId(chatActivoId === orden.id ? null : orden.id);
+                            setMensajesChat(orden.chat_mensajes || []);
+                          }}
+                          className="flex-1 sm:flex-none bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 text-xs font-bold px-4 py-2 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer"
                         >
-                          Enviar
+                          <MessageSquare size={14} /> {chatActivoId === orden.id ? 'Ocultar Chat' : 'Chat'}
                         </button>
-                      </form>
+
+                        <button
+                          onClick={() => concluirServicio(orden.id)}
+                          className="flex-1 sm:flex-none bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black px-4 py-2 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
+                        >
+                          <CheckCircle2 size={14} /> Concluir Servicio
+                        </button>
+                      </div>
                     </div>
-                  )}
-                </div>
-              )}
-            </div>
-          ))
+
+                    {chatActivoId === orden.id && (
+                      <div className="bg-slate-950 border border-amber-500/30 rounded-2xl p-4 space-y-3">
+                        <div className="text-xs font-bold text-slate-300 border-b border-slate-800 pb-2">
+                          Chat en vivo con {orden.cliente_nombre}
+                        </div>
+
+                        <div className="h-48 overflow-y-auto space-y-2 pr-2">
+                          {(!orden.chat_mensajes || orden.chat_mensajes.length === 0) ? (
+                            <div className="h-full flex items-center justify-center text-slate-600 text-xs italic">
+                              Inicia la conversación con el cliente...
+                            </div>
+                          ) : (
+                            orden.chat_mensajes.map((m: any, idx: number) => (
+                              <div key={idx} className={`flex flex-col ${m.remitente === 'motorizado' ? 'items-end' : 'items-start'}`}>
+                                <div className={`max-w-[75%] rounded-xl px-3 py-1.5 text-xs ${
+                                  m.remitente === 'motorizado'
+                                    ? 'bg-amber-500 text-slate-950 font-medium'
+                                    : 'bg-slate-800 text-slate-200 border border-slate-700'
+                                }`}>
+                                  <div className="text-[9px] opacity-75 font-bold">{m.autor} • {m.hora}</div>
+                                  <div>{m.texto}</div>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+
+                        <form onSubmit={(e) => enviarMensajeChat(e, orden.id)} className="flex gap-2">
+                          <input
+                            type="text"
+                            value={mensaje}
+                            onChange={(e) => setMensaje(e.target.value)}
+                            placeholder="Escribe al cliente..."
+                            className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                          />
+                          <button
+                            type="submit"
+                            className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs transition cursor-pointer"
+                          >
+                            Enviar
+                          </button>
+                        </form>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })
         )}
       </div>
     </div>
