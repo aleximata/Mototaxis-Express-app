@@ -1,66 +1,44 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { MapPin, CheckCircle, Clock, Bike, ShieldAlert, MessageSquare, Send } from 'lucide-react';
+import { MapPin, Navigation, MessageSquare, Clock, CheckCircle2, Bike, Send, Check } from 'lucide-react';
 
 export function UbicacionCliente({ ordenId }: { ordenId: string }) {
-  const [estadoOrden, setEstadoOrden] = useState<string>('PENDIENTE_VERIFICACION');
-  const [motorizadoAsignado, setMotorizadoAsignado] = useState<string | null>(null);
-  const [compartiendo, setCompartiendo] = useState(false);
-  const [errorGps, setErrorGps] = useState<string | null>(null);
-
-  // Estados para el Chat
+  const [orden, setOrden] = useState<any>(null);
+  const [cargandoUbicacion, setCargandoUbicacion] = useState(false);
   const [mensaje, setMensaje] = useState('');
   const [mensajesChat, setMensajesChat] = useState<any[]>([]);
-  const [clienteNombre, setClienteNombre] = useState('Cliente');
 
+  // Cargar y escuchar cambios en la orden en tiempo real
   useEffect(() => {
     if (!ordenId) return;
 
-    const cargarDatosOrden = async () => {
-      try {
-        const { data } = await supabase
-          .from('ordenes')
-          .select('estado, motorizado_asignado, cliente_nombre, chat_mensajes')
-          .eq('id', ordenId)
-          .single();
-
-        if (data) {
-          setEstadoOrden(data.estado || 'PENDIENTE_VERIFICACION');
-          setMotorizadoAsignado(data.motorizado_asignado);
-          if (data.cliente_nombre) setClienteNombre(data.cliente_nombre);
-          if (data.chat_mensajes && Array.isArray(data.chat_mensajes)) {
-            setMensajesChat(data.chat_mensajes);
-          }
+    const fetchOrden = async () => {
+      const { data } = await supabase
+        .from('ordenes')
+        .select('*')
+        .eq('id', ordenId)
+        .single();
+      if (data) {
+        setOrden(data);
+        if (data.chat_mensajes && Array.isArray(data.chat_mensajes)) {
+          setMensajesChat(data.chat_mensajes);
         }
-      } catch (e) {
-        console.error(e);
       }
     };
 
-    cargarDatosOrden();
+    fetchOrden();
 
-    // Sincronización continua cada 1.5 segundos para refrescar mensajes y estado
-    const intervalo = setInterval(() => {
-      cargarDatosOrden();
-    }, 1500);
-
-    // Canal en tiempo real de Supabase optimizado
     const channel = supabase
-      .channel(`chat-cliente-${ordenId}`)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'ordenes', filter: `id=eq.${ordenId}` },
-        (payload: any) => {
-          if (payload.new) {
-            if (payload.new.estado) setEstadoOrden(payload.new.estado);
-            if (payload.new.motorizado_asignado) setMotorizadoAsignado(payload.new.motorizado_asignado);
-            if (payload.new.chat_mensajes && Array.isArray(payload.new.chat_mensajes)) {
-              setMensajesChat(payload.new.chat_mensajes);
-            }
-          }
+      .channel(`cliente-orden-${ordenId}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'ordenes', filter: `id=eq.${ordenId}` }, (payload) => {
+        setOrden(payload.new);
+        if (payload.new.chat_mensajes && Array.isArray(payload.new.chat_mensajes)) {
+          setMensajesChat(payload.new.chat_mensajes);
         }
-      )
+      })
       .subscribe();
+
+    const intervalo = setInterval(fetchOrden, 2500);
 
     return () => {
       clearInterval(intervalo);
@@ -68,144 +46,140 @@ export function UbicacionCliente({ ordenId }: { ordenId: string }) {
     };
   }, [ordenId]);
 
-  const enviarMensajeChat = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!mensaje.trim()) return;
-
-    const nuevoMsg = {
-      remitente: 'cliente',
-      autor: clienteNombre,
-      texto: mensaje.trim(),
-      hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-
-    // Combinar mensajes actuales con el nuevo mensaje
-    const nuevosMensajes = [...mensajesChat, nuevoMsg];
-
-    // Actualizar vista local inmediatamente
-    setMensajesChat(nuevosMensajes);
-    const textoAEnviar = mensaje;
-    setMensaje('');
-
-    try {
-      // Guardar en la base de datos de Supabase para que el motorizado lo reciba
-      const { error } = await supabase
-        .from('ordenes')
-        .update({ chat_mensajes: nuevosMensajes })
-        .eq('id', ordenId);
-
-      if (error) {
-        console.error('Error al guardar mensaje en Supabase:', error);
-      }
-    } catch (err) {
-      console.error('Excepción al enviar mensaje:', err);
-    }
-  };
-
+  // Función para compartir ubicación GPS actual del cliente
   const compartirUbicacion = () => {
     if (!navigator.geolocation) {
-      setErrorGps('Tu navegador no soporta geolocalización.');
+      alert('Tu navegador no soporta geolocalización.');
       return;
     }
 
-    setCompartiendo(true);
-    setErrorGps(null);
-
+    setCargandoUbicacion(true);
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const lat = position.coords.latitude;
         const lon = position.coords.longitude;
 
         try {
-          await supabase
+          const { error } = await supabase
             .from('ordenes')
             .update({ latitud: lat, longitud: lon })
             .eq('id', ordenId);
 
-          setCompartiendo(false);
-          alert('¡Ubicación GPS sincronizada exitosamente!');
+          if (error) throw error;
+          alert('¡Ubicación GPS compartida con éxito con el motorizado!');
         } catch (err) {
           console.error(err);
-          setCompartiendo(false);
-          setErrorGps('Error al guardar la ubicación en la nube.');
+          alert('Error al actualizar la ubicación en la base de datos.');
+        } finally {
+          setCargandoUbicacion(false);
         }
       },
       (error) => {
-        setCompartiendo(false);
-        setErrorGps('No se pudo obtener tu ubicación. Da permisos de GPS.');
         console.error(error);
+        alert('No se pudo obtener tu ubicación. Asegúrate de dar permisos de GPS.');
+        setCargandoUbicacion(false);
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      { enableHighAccuracy: true }
     );
   };
 
+  // Enviar mensaje en el chat
+  const enviarMensajeChat = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mensaje.trim() || !orden) return;
+
+    const nuevoMsg = {
+      remitente: 'cliente',
+      autor: orden.cliente_nombre || 'Cliente',
+      texto: mensaje.trim(),
+      hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    const nuevosMensajes = [...mensajesChat, nuevoMsg];
+    setMensajesChat(nuevosMensajes);
+    setMensaje('');
+
+    try {
+      await supabase
+        .from('ordenes')
+        .update({ chat_mensajes: nuevosMensajes })
+        .eq('id', ordenId);
+    } catch (err) {
+      console.error('Error al enviar mensaje:', err);
+    }
+  };
+
+  if (!orden) {
+    return <div className="text-center text-xs text-slate-400 py-4">Cargando detalles de tu solicitud...</div>;
+  }
+
   return (
     <div className="space-y-4">
-
-      {/* Banner de Estado en Tiempo Real */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-center space-y-2">
-        <div className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Estatus de tu Solicitud</div>
-
-        {estadoOrden === 'PENDIENTE_VERIFICACION' && (
-          <div className="flex flex-col items-center justify-center gap-1.5 text-amber-400">
-            <Clock size={24} className="animate-pulse" />
-            <span className="text-xs font-black">Verificando Pago Móvil...</span>
-            <p className="text-[11px] text-slate-400">El administrador está validando tu referencia. Esta pantalla se actualizará sola.</p>
-          </div>
-        )}
-
-        {(estadoOrden === 'APROBADO' || estadoOrden === 'EN_CAMINO') && (
-          <div className="flex flex-col items-center justify-center gap-1.5 text-emerald-400">
-            <CheckCircle size={24} />
-            <span className="text-xs font-black">
-              {estadoOrden === 'EN_CAMINO' ? '¡Motorizado en Camino!' : '¡Pago Aprobado con Éxito!'}
+      {/* Estado del pago / orden */}
+      <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-4 text-left space-y-3">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+          <span className="text-xs font-bold text-slate-400">Estatus Actual:</span>
+          {orden.estado === 'PENDIENTE' && (
+            <span className="inline-flex items-center gap-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2.5 py-1 rounded-full text-[10px] font-bold">
+              <Clock size={12} /> Verificando Pago Móvil...
             </span>
-            <p className="text-[11px] text-slate-300">
-              {motorizadoAsignado
-                ? `Repartidor: ${motorizadoAsignado}`
-                : 'Tu orden ha sido aceptada. Un motorizado la tomará en breve.'}
-            </p>
-          </div>
-        )}
+          )}
+          {orden.estado === 'APROBADO' && (
+            <span className="inline-flex items-center gap-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-full text-[10px] font-bold">
+              <CheckCircle2 size={12} /> Pago Aprobado (Buscando Motorizado)
+            </span>
+          )}
+          {orden.estado === 'EN_CAMINO' && (
+            <span className="inline-flex items-center gap-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2.5 py-1 rounded-full text-[10px] font-bold">
+              <Bike size={12} /> En Camino ({orden.motorizado_asignado || 'Motorizado'})
+            </span>
+          )}
+          {orden.estado === 'COMPLETADO' && (
+            <span className="inline-flex items-center gap-1 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2.5 py-1 rounded-full text-[10px] font-bold">
+              <Check size={12} /> Servicio Finalizado con Éxito
+            </span>
+          )}
+        </div>
 
-        {estadoOrden === 'RECHAZADO' && (
-          <div className="flex flex-col items-center justify-center gap-1.5 text-rose-400">
-            <ShieldAlert size={24} />
-            <span className="text-xs font-black">Pago No Verificado / Rechazado</span>
-            <p className="text-[11px] text-slate-400">Por favor verifica los datos de tu pago móvil.</p>
+        {/* Botón para compartir GPS si el pago fue aprobado o está en camino */}
+        {(orden.estado === 'APROBADO' || orden.estado === 'EN_CAMINO') && (
+          <div className="space-y-2 pt-1">
+            <p className="text-[11px] text-slate-300">
+              {orden.latitud ? '✅ Tu ubicación GPS ya fue compartida.' : '⚠️ Tu pago fue aprobado. Comparte tu ubicación exacta para que el motorizado llegue rápido:'}
+            </p>
+            <button
+              onClick={compartirUbicacion}
+              disabled={cargandoUbicacion}
+              className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-2.5 px-4 rounded-xl transition text-xs flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-amber-500/20"
+            >
+              <Navigation size={15} /> {cargandoUbicacion ? 'Obteniendo GPS...' : 'Compartir mi Ubicación GPS Actual'}
+            </button>
           </div>
         )}
       </div>
 
-      {/* Cuadro de Chat Sincronizado */}
-      {(estadoOrden === 'APROBADO' || estadoOrden === 'EN_CAMINO') && (
-        <div className="bg-slate-950/90 border border-blue-500/30 rounded-2xl p-4 space-y-3 shadow-xl">
-          <div className="flex items-center gap-2 border-b border-slate-800 pb-2.5">
-            <div className="bg-blue-500/10 p-1.5 rounded-lg text-blue-400">
-              <MessageSquare size={16} />
-            </div>
-            <div>
-              <h3 className="font-black text-white text-xs">
-                Chat con Motorizado {motorizadoAsignado ? `(${motorizadoAsignado})` : ''}
-              </h3>
-              <p className="text-[10px] text-slate-400">Mensajes sincronizados en tiempo real</p>
-            </div>
+      {/* Chat habilitado cuando un motorizado toma la orden (EN_CAMINO) */}
+      {orden.estado === 'EN_CAMINO' && (
+        <div className="bg-slate-950 border border-blue-500/30 rounded-2xl p-4 space-y-3 text-left">
+          <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
+            <MessageSquare size={16} className="text-blue-400" />
+            <span className="text-xs font-bold text-white">Chat con el motorizado: {orden.motorizado_asignado}</span>
           </div>
 
-          <div className="h-48 overflow-y-auto bg-slate-900/80 border border-slate-800 rounded-xl p-3 space-y-2.5">
+          <div className="h-44 overflow-y-auto bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-2">
             {mensajesChat.length === 0 ? (
               <div className="h-full flex items-center justify-center text-slate-500 text-[11px] italic">
-                Escribe un mensaje para coordinar la entrega con el motorizado.
+                Escribe un mensaje al motorizado para coordinar detalles...
               </div>
             ) : (
               mensajesChat.map((m, idx) => (
                 <div key={idx} className={`flex flex-col ${m.remitente === 'cliente' ? 'items-end' : 'items-start'}`}>
-                  <div className={`max-w-[80%] rounded-xl px-3 py-1.5 text-xs space-y-0.5 ${
+                  <div className={`max-w-[80%] rounded-xl px-3 py-1.5 text-[11px] space-y-0.5 ${
                     m.remitente === 'cliente' 
                       ? 'bg-blue-600 text-white font-medium' 
                       : 'bg-slate-800 text-slate-200 border border-slate-700'
                   }`}>
-                    <div className="text-[9px] opacity-75 font-bold">{m.autor} • {m.hora}</div>
+                    <div className="text-[8px] opacity-75 font-bold">{m.autor} • {m.hora}</div>
                     <div>{m.texto}</div>
                   </div>
                 </div>
@@ -225,31 +199,11 @@ export function UbicacionCliente({ ordenId }: { ordenId: string }) {
               type="submit"
               className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2 rounded-xl transition text-xs flex items-center gap-1 cursor-pointer"
             >
-              <Send size={12} /> Enviar
+              <Send size={13} /> Enviar
             </button>
           </form>
         </div>
       )}
-
-      {/* Botón de Ubicación GPS */}
-      <div className="space-y-2 text-center pt-2">
-        <p className="text-xs text-slate-300">
-          Para que el motorizado llegue exacto a tu puerta, comparte tu ubicación actual por GPS:
-        </p>
-
-        <button
-          onClick={compartirUbicacion}
-          disabled={compartiendo}
-          className="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-black py-3 px-4 rounded-xl transition text-xs flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-amber-500/20"
-        >
-          <MapPin size={16} /> {compartiendo ? 'Obteniendo GPS...' : 'Compartir mi Ubicación GPS Actual'}
-        </button>
-
-        {errorGps && (
-          <p className="text-[11px] text-rose-400 font-medium">{errorGps}</p>
-        )}
-      </div>
-
     </div>
   );
 }
