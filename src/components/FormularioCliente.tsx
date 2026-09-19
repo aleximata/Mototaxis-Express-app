@@ -1,51 +1,53 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 
-export const FormularioCliente: React.FC = () => {
+interface FormularioClienteProps {
+  onVolver: () => void;
+  onOrdenCreada: (id: string) => void;
+}
+
+export const FormularioCliente: React.FC<FormularioClienteProps> = ({ onVolver, onOrdenCreada }) => {
   const [formData, setFormData] = useState({
     nombre: '',
     telefono: '',
     tipoServicio: 'Carrera Express (Mototaxi)',
-    monto: '3.00', // Valor por defecto inicial (Carrera Corta)
+    monto: '3.00',
     bancoEmisor: 'Banesco (0134)',
     cedula: '',
     referencia: '',
   });
 
   const [loading, setLoading] = useState(false);
-  const [mensajeExito, setMensajeExito] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setMensajeExito('');
 
     try {
-      const { error } = await supabase.from('servicios').insert([
-        {
-          nombre: formData.nombre,
-          telefono: formData.telefono,
-          tipo_servicio: formData.tipoServicio,
-          monto: parseFloat(formData.monto),
-          banco_emisor: formData.bancoEmisor,
-          cedula: formData.cedula,
-          referencia: formData.referencia,
-          estado: 'Pendiente',
-        },
-      ]);
+      // Insertamos usando los nombres de columnas correctos de tu tabla 'ordenes'
+      const { data, error } = await supabase
+        .from('ordenes')
+        .insert([
+          {
+            cliente_nombre: formData.nombre,
+            cliente_telefono: formData.telefono,
+            tipo_servicio: formData.tipoServicio,
+            monto: parseFloat(formData.monto),
+            metodo_pago: `Pago Móvil (${formData.bancoEmisor})`,
+            cedula_pagador: formData.cedula,
+            referencia_pago: formData.referencia,
+            estado: 'PENDIENTE',
+          },
+        ])
+        .select()
+        .single();
 
       if (error) throw error;
 
-      setMensajeExito('¡Solicitud enviada con éxito!');
-      setFormData({
-        nombre: '',
-        telefono: '',
-        tipoServicio: 'Carrera Express (Mototaxi)',
-        monto: '3.00',
-        bancoEmisor: 'Banesco (0134)',
-        cedula: '',
-        referencia: '',
-      });
+      if (data && data.id) {
+        // Al crearse con éxito, pasamos el ID a App.tsx para abrir la pantalla de éxito y GPS
+        onOrdenCreada(data.id);
+      }
     } catch (error: any) {
       console.error('Error al enviar la solicitud:', error.message);
       alert('Hubo un error al enviar la solicitud. Por favor intenta de nuevo.');
@@ -55,25 +57,30 @@ export const FormularioCliente: React.FC = () => {
   };
 
   return (
-    <div className="max-w-xl mx-auto bg-slate-900 p-6 rounded-xl shadow-xl border border-slate-800 text-white">
-      <h2 className="text-2xl font-bold mb-2 text-yellow-400">Solicitar Servicio Express</h2>
-      <p className="text-sm text-slate-400 mb-6">Completa los datos de pago móvil y envío</p>
-
-      {mensajeExito && (
-        <div className="mb-4 p-3 bg-emerald-900/50 border border-emerald-500 text-emerald-300 rounded-lg text-sm">
-          {mensajeExito}
+    <div className="max-w-xl mx-auto bg-slate-900 p-6 rounded-3xl shadow-2xl border border-slate-800 text-white">
+      <div className="flex justify-between items-center mb-4">
+        <div>
+          <h2 className="text-xl font-black text-white">Solicitar Servicio Express</h2>
+          <p className="text-xs text-slate-400">Completa los datos de pago móvil y envío</p>
         </div>
-      )}
+        <button
+          type="button"
+          onClick={onVolver}
+          className="text-xs text-slate-400 hover:text-white transition cursor-pointer"
+        >
+          ← Volver
+        </button>
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Nombre Completo */}
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">Nombre Completo</label>
+          <label className="block text-xs font-bold text-slate-300 mb-1">Nombre Completo</label>
           <input
             type="text"
             value={formData.nombre}
             onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-            className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-yellow-500 focus:outline-none"
+            className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
             placeholder="Ej: Carlos Pérez"
             required
           />
@@ -81,12 +88,12 @@ export const FormularioCliente: React.FC = () => {
 
         {/* Teléfono / WhatsApp */}
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">Teléfono / WhatsApp</label>
+          <label className="block text-xs font-bold text-slate-300 mb-1">Teléfono / WhatsApp</label>
           <input
             type="text"
             value={formData.telefono}
             onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
-            className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-yellow-500 focus:outline-none"
+            className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
             placeholder="Ej: 04141234567"
             required
           />
@@ -94,24 +101,24 @@ export const FormularioCliente: React.FC = () => {
 
         {/* Tipo de Servicio */}
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">Tipo de Servicio</label>
+          <label className="block text-xs font-bold text-slate-300 mb-1">Tipo de Servicio</label>
           <select
             value={formData.tipoServicio}
             onChange={(e) => setFormData({ ...formData, tipoServicio: e.target.value })}
-            className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-yellow-500 focus:outline-none"
+            className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
           >
             <option value="Carrera Express (Mototaxi)">Carrera Express (Mototaxi)</option>
             <option value="Envios / Delivery">Envios / Delivery</option>
           </select>
         </div>
 
-        {/* Monto (USD) - Selector de Carrera Corta / Larga */}
+        {/* Monto (USD) */}
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">Monto (USD)</label>
+          <label className="block text-xs font-bold text-slate-300 mb-1">Monto (USD)</label>
           <select
             value={formData.monto}
             onChange={(e) => setFormData({ ...formData, monto: e.target.value })}
-            className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-yellow-500 focus:outline-none"
+            className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
             required
           >
             <option value="3.00">Carrera Corta - $3.00</option>
@@ -121,27 +128,27 @@ export const FormularioCliente: React.FC = () => {
 
         {/* Banco Emisor */}
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">Banco Emisor</label>
+          <label className="block text-xs font-bold text-slate-300 mb-1">Banco Emisor</label>
           <select
             value={formData.bancoEmisor}
             onChange={(e) => setFormData({ ...formData, bancoEmisor: e.target.value })}
-            className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-yellow-500 focus:outline-none"
+            className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
           >
             <option value="Banesco (0134)">Banesco (0134)</option>
             <option value="Mercantil (0105)">Mercantil (0105)</option>
             <option value="Provincial (0108)">Provincial (0108)</option>
-            <option value="BOD / Otro">Otro Banco</option>
+            <option value="Otro Banco">Otro Banco</option>
           </select>
         </div>
 
         {/* Cédula del Pagador */}
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">Cédula del Pagador</label>
+          <label className="block text-xs font-bold text-slate-300 mb-1">Cédula del Pagador</label>
           <input
             type="text"
             value={formData.cedula}
             onChange={(e) => setFormData({ ...formData, cedula: e.target.value })}
-            className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-yellow-500 focus:outline-none"
+            className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
             placeholder="Ej: 12345678"
             required
           />
@@ -149,12 +156,12 @@ export const FormularioCliente: React.FC = () => {
 
         {/* Últimos Ref. Pago Móvil */}
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">Últimos Ref. Pago Móvil</label>
+          <label className="block text-xs font-bold text-slate-300 mb-1">Últimos Ref. Pago Móvil</label>
           <input
             type="text"
             value={formData.referencia}
             onChange={(e) => setFormData({ ...formData, referencia: e.target.value })}
-            className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-yellow-500 focus:outline-none"
+            className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
             placeholder="Ej: 4567"
             maxLength={4}
             required
@@ -165,7 +172,7 @@ export const FormularioCliente: React.FC = () => {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-bold py-3 px-4 rounded-lg transition duration-200 mt-4 disabled:opacity-50 cursor-pointer"
+          className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-3 px-4 rounded-xl transition text-xs uppercase tracking-wider shadow-lg shadow-amber-500/20 disabled:opacity-50 cursor-pointer mt-2"
         >
           {loading ? 'Enviando solicitud...' : 'Registrar Pago y Solicitar Servicio'}
         </button>
