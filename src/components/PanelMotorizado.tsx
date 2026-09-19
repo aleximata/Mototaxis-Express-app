@@ -143,7 +143,6 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
       .eq('id', ordenId);
   };
 
-  // Si no está autenticado, mostramos el login con PIN
   if (!autenticado) {
     return (
       <div className="max-w-md mx-auto mt-10 bg-slate-900/90 backdrop-blur-2xl border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6 text-white">
@@ -233,7 +232,9 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
           </div>
         ) : (
           listaVisible.map((orden) => {
-            const queryMap = orden.direccion || orden.cliente_nombre || 'Ubicacion cliente';
+            // Buscamos dinámicamente en cualquier posible nombre de columna que use el admin
+            const ubicacionReal = orden.direccion || orden.ubicacion || orden.destino || orden.punto_llegada || '';
+            const queryMap = ubicacionReal.trim() !== '' ? ubicacionReal : `Cliente ${orden.cliente_nombre}`;
 
             return (
               <div key={orden.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
@@ -254,14 +255,14 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
                   </div>
                 </div>
 
-                {/* BOTÓN DE GOOGLE MAPS GARANTIZADO */}
+                {/* UBICACIÓN MULTI-CAMPO Y GOOGLE MAPS */}
                 <div className="bg-slate-950/80 border border-slate-800 p-3.5 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
                   <div className="flex items-start gap-2 text-slate-300">
                     <MapPin size={16} className="text-rose-400 shrink-0 mt-0.5" />
                     <div>
                       <strong className="text-white block">Dirección de entrega:</strong>
-                      <span className={orden.direccion ? 'text-slate-300' : 'text-amber-400 italic'}>
-                        {orden.direccion ? orden.direccion : '⚠️ No especificada (Preguntar por chat)'}
+                      <span className={ubicacionReal ? 'text-slate-300' : 'text-amber-400 italic'}>
+                        {ubicacionReal ? ubicacionReal : '⚠️ Consultar ubicación exacta con el cliente'}
                       </span>
                     </div>
                   </div>
