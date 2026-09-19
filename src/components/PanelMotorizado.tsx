@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { MessageSquare, Navigation, Bike, CheckCircle2, LogOut, Lock, AlertCircle, ArrowRight, MapPin, Phone, User, Compass } from 'lucide-react';
+import { MessageSquare, Navigation, Bike, CheckCircle2, LogOut, Lock, AlertCircle, ArrowRight, MapPin, Phone, User } from 'lucide-react';
 
 interface PanelMotorizadoProps {
   nombreMotorizado: string;
@@ -14,16 +14,14 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
   });
   const [pin, setPin] = useState('');
   const [errorPin, setErrorPin] = useState(false);
+
+  // PIN correcto de acceso para motorizados
   const PIN_CORRECTO = '1234';
 
   const [ordenes, setOrdenes] = useState<any[]>([]);
   const [chatActivoId, setChatActivoId] = useState<string | null>(null);
-  const [mapaActivoId, setMapaActivoId] = useState<string | null>(null);
   const [mensaje, setMensaje] = useState('');
   const [mensajesChat, setMensajesChat] = useState<any[]>([]);
-
-  // Geolocalización del propio motorizado en tiempo real
-  const [miUbicacion, setMiUbicacion] = useState<{ lat: number; lng: number } | null>(null);
 
   const manejarLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,20 +49,6 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
   useEffect(() => {
     if (autenticado) {
       cargarOrdenes();
-
-      // Obtener la posición GPS actual del motorizado
-      if (navigator.geolocation) {
-        navigator.geolocation.watchPosition(
-          (position) => {
-            setMiUbicacion({
-              lat: position.coords.latitude,
-              lng: position.coords.longitude,
-            });
-          },
-          (err) => console.error('Error obteniendo GPS:', err),
-          { enableHighAccuracy: true }
-        );
-      }
 
       const channel = supabase
         .channel('motorizado_ordenes_cambios')
@@ -117,14 +101,18 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
       console.error('Error al concluir el servicio:', error);
       alert('No se pudo actualizar el estatus del servicio.');
     } else {
-      if (chatActivoId === ordenId) setChatActivoId(null);
-      if (mapaActivoId === ordenId) setMapaActivoId(null);
+      if (chatActivoId === ordenId) {
+        setChatActivoId(null);
+      }
       cargarOrdenes();
     }
   };
 
   const manejarSalida = async () => {
+    // Limpiar autenticación local de motorizado
     sessionStorage.removeItem('motorizado_auth');
+
+    // Cambiar estatus a fuera de línea en Supabase si aplica la tabla
     await supabase
       .from('motorizados')
       .update({ en_linea: false })
@@ -157,6 +145,7 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
       .eq('id', ordenId);
   };
 
+  // Si no está autenticado, mostramos el login con PIN
   if (!autenticado) {
     return (
       <div className="max-w-md mx-auto mt-10 bg-slate-900/90 backdrop-blur-2xl border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6 text-white">
@@ -225,7 +214,7 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
           <div className="bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs px-3 py-1.5 rounded-full font-bold flex items-center gap-1.5">
-            <Bike size={14} /> GPS Activo
+            <Bike size={14} /> En línea (Protegido)
           </div>
           <button
             onClick={manejarSalida}
@@ -264,58 +253,21 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
                 </div>
               </div>
 
-              {/* Sección de Ubicación y Navegación en Tiempo Real */}
+              {/* Botón de Dirección con Enlace a Google Maps */}
               {orden.direccion && (
-                <div className="bg-slate-950/60 border border-slate-800 p-3.5 rounded-xl space-y-3 text-xs">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-2 text-slate-300">
-                      <MapPin size={16} className="text-rose-400 shrink-0 mt-0.5" />
-                      <div>
-                        <strong className="text-white block">Dirección de Destino:</strong>
-                        <span className="text-slate-400">{orden.direccion}</span>
-                      </div>
-                    </div>
+                <div className="bg-slate-950/60 border border-slate-800 p-3 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                  <div className="flex items-start gap-2 text-slate-300">
+                    <MapPin size={16} className="text-rose-400 shrink-0 mt-0.5" />
+                    <span><strong>Dirección:</strong> {orden.direccion}</span>
                   </div>
-
-                  {/* Botones de Navegación GPS (Google Maps / Waze) */}
-                  <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-800/80">
-                    <a
-                      href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(orden.direccion)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 py-2 px-3 rounded-lg font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <Navigation size={14} /> Abrir en Google Maps
-                    </a>
-                    <a
-                      href={`https://waze.com/ul?q=${encodeURIComponent(orden.direccion)}&navigate=yes`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-400 border border-cyan-500/30 py-2 px-3 rounded-lg font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <Compass size={14} /> Abrir en Waze
-                    </a>
-                    <button
-                      onClick={() => setMapaActivoId(mapaActivoId === orden.id ? null : orden.id)}
-                      className="bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 py-2 px-3 rounded-lg font-bold transition flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <MapPin size={14} /> {mapaActivoId === orden.id ? 'Ocultar Mapa' : 'Ver Mapa en Vivo'}
-                    </button>
-                  </div>
-
-                  {/* Vista previa del Mapa Interactivo Integrado */}
-                  {mapaActivoId === orden.id && (
-                    <div className="mt-3 rounded-xl overflow-hidden border border-slate-700 h-64 relative bg-slate-950">
-                      <iframe
-                        title="Mapa de Entrega"
-                        width="100%"
-                        height="100%"
-                        style={{ border: 0 }}
-                        loading="lazy"
-                        src={`https://maps.google.com/maps?q=${encodeURIComponent(orden.direccion)}&output=embed`}
-                      ></iframe>
-                    </div>
-                  )}
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(orden.direccion)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 shrink-0"
+                  >
+                    <Navigation size={13} /> Abrir en Google Maps
+                  </a>
                 </div>
               )}
 
