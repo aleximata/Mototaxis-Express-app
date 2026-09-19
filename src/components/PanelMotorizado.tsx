@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { MessageSquare, Navigation, Bike } from 'lucide-react';
+import { MessageSquare, Navigation, Bike, CheckCircle2 } from 'lucide-react';
 
 interface PanelMotorizadoProps {
   nombreMotorizado: string;
@@ -43,6 +43,7 @@ export function PanelMotorizado({ nombreMotorizado }: PanelMotorizadoProps) {
     };
   }, []);
 
+  // El motorizado acepta una orden APROBADA y pasa a EN_CAMINO
   const aceptarServicioAprobado = async (ordenId: string) => {
     const { error } = await supabase
       .from('ordenes')
@@ -59,6 +60,30 @@ export function PanelMotorizado({ nombreMotorizado }: PanelMotorizadoProps) {
       setChatActivoId(ordenId);
       const ordenActual = ordenes.find((o) => o.id === ordenId);
       setMensajesChat(ordenActual?.chat_mensajes || []);
+    }
+  };
+
+  // NUEVO: Marcar el servicio como concluido/completado y limpiar el panel
+  const concluirServicio = async (ordenId: string) => {
+    const confirmar = window.confirm('¿Estás seguro de que deseas marcar este servicio como concluido?');
+    if (!confirmar) return;
+
+    const { error } = await supabase
+      .from('ordenes')
+      .update({
+        estado: 'COMPLETADO',
+      })
+      .eq('id', ordenId);
+
+    if (error) {
+      console.error('Error al concluir el servicio:', error);
+      alert('No se pudo actualizar el estatus del servicio.');
+    } else {
+      // Cierra el chat activo si era el de esta orden y recarga
+      if (chatActivoId === ordenId) {
+        setChatActivoId(null);
+      }
+      cargarOrdenes();
     }
   };
 
@@ -86,6 +111,8 @@ export function PanelMotorizado({ nombreMotorizado }: PanelMotorizadoProps) {
       .eq('id', ordenId);
   };
 
+  // FILTRO: Solo muestra las APROBADAS (libres) o las EN_CAMINO de este motorizado.
+  // Al marcarse como COMPLETADO, desaparece automáticamente de su vista dejándolo libre.
   const listaVisible = ordenes.filter(
     (o) =>
       o.estado === 'APROBADO' ||
@@ -102,7 +129,7 @@ export function PanelMotorizado({ nombreMotorizado }: PanelMotorizadoProps) {
           </p>
         </div>
         <div className="bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs px-3 py-1.5 rounded-full font-bold flex items-center gap-1.5">
-          <Bike size={14} /> En línea (Viendo aprobados)
+          <Bike size={14} /> Disponible / En línea
         </div>
       </div>
 
@@ -110,8 +137,9 @@ export function PanelMotorizado({ nombreMotorizado }: PanelMotorizadoProps) {
         <h2 className="text-sm font-bold text-slate-300">Servicios Listos para Tomar / En Curso:</h2>
 
         {listaVisible.length === 0 ? (
-          <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-8 text-center text-slate-500 text-xs">
-            No hay servicios aprobados disponibles en este momento.
+          <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-8 text-center text-slate-500 text-xs space-y-2">
+            <p className="text-slate-400 font-bold">¡Tu panel está limpio y libre!</p>
+            <p className="text-slate-500">Esperando nuevos servicios aprobados para tomar.</p>
           </div>
         ) : (
           listaVisible.map((orden) => (
@@ -129,6 +157,7 @@ export function PanelMotorizado({ nombreMotorizado }: PanelMotorizadoProps) {
                 </div>
               </div>
 
+              {/* Si está APROBADO: Botón para tomar servicio */}
               {orden.estado === 'APROBADO' && (
                 <button
                   onClick={() => aceptarServicioAprobado(orden.id)}
@@ -138,23 +167,35 @@ export function PanelMotorizado({ nombreMotorizado }: PanelMotorizadoProps) {
                 </button>
               )}
 
+              {/* Si ya está EN_CAMINO: Opciones de Chat y Concluir Servicio */}
               {orden.estado === 'EN_CAMINO' && (
                 <div className="space-y-4 border-t border-slate-800 pt-4">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
                     <span className="bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold px-3 py-1.5 rounded-full inline-flex items-center gap-1.5">
-                      <Navigation size={14} /> En camino a buscar/entregar pedido
+                      <Navigation size={14} /> En camino a entregar pedido
                     </span>
-                    <button
-                      onClick={() => {
-                        setChatActivoId(chatActivoId === orden.id ? null : orden.id);
-                        setMensajesChat(orden.chat_mensajes || []);
-                      }}
-                      className="bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 text-xs font-bold px-4 py-2 rounded-xl transition flex items-center gap-2 cursor-pointer"
-                    >
-                      <MessageSquare size={14} /> {chatActivoId === orden.id ? 'Ocultar Chat' : 'Abrir Chat con Cliente'}
-                    </button>
+
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <button
+                        onClick={() => {
+                          setChatActivoId(chatActivoId === orden.id ? null : orden.id);
+                          setMensajesChat(orden.chat_mensajes || []);
+                        }}
+                        className="flex-1 sm:flex-none bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 text-xs font-bold px-4 py-2 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <MessageSquare size={14} /> {chatActivoId === orden.id ? 'Ocultar Chat' : 'Chat'}
+                      </button>
+
+                      <button
+                        onClick={() => concluirServicio(orden.id)}
+                        className="flex-1 sm:flex-none bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black px-4 py-2 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
+                      >
+                        <CheckCircle2 size={14} /> Concluir Servicio
+                      </button>
+                    </div>
                   </div>
 
+                  {/* Caja del Chat en Tiempo Real */}
                   {chatActivoId === orden.id && (
                     <div className="bg-slate-950 border border-amber-500/30 rounded-2xl p-4 space-y-3">
                       <div className="text-xs font-bold text-slate-300 border-b border-slate-800 pb-2">
