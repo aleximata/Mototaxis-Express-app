@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { MessageSquare, Navigation, Bike, CheckCircle2 } from 'lucide-react';
+import { MessageSquare, Navigation, Bike, CheckCircle2, LogOut } from 'lucide-react';
 
 interface PanelMotorizadoProps {
   nombreMotorizado: string;
+  onCerrarSesion: () => void;
 }
 
-export function PanelMotorizado({ nombreMotorizado }: PanelMotorizadoProps) {
+export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotorizadoProps) {
   const [ordenes, setOrdenes] = useState<any[]>([]);
   const [chatActivoId, setChatActivoId] = useState<string | null>(null);
   const [mensaje, setMensaje] = useState('');
@@ -31,8 +32,7 @@ export function PanelMotorizado({ nombreMotorizado }: PanelMotorizadoProps) {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'ordenes' },
-        (payload) => {
-          console.log('Cambio detectado en órdenes:', payload);
+        () => {
           cargarOrdenes();
         }
       )
@@ -43,7 +43,6 @@ export function PanelMotorizado({ nombreMotorizado }: PanelMotorizadoProps) {
     };
   }, []);
 
-  // El motorizado acepta una orden APROBADA y pasa a EN_CAMINO
   const aceptarServicioAprobado = async (ordenId: string) => {
     const { error } = await supabase
       .from('ordenes')
@@ -63,7 +62,6 @@ export function PanelMotorizado({ nombreMotorizado }: PanelMotorizadoProps) {
     }
   };
 
-  // NUEVO: Marcar el servicio como concluido/completado y limpiar el panel
   const concluirServicio = async (ordenId: string) => {
     const confirmar = window.confirm('¿Estás seguro de que deseas marcar este servicio como concluido?');
     if (!confirmar) return;
@@ -79,12 +77,21 @@ export function PanelMotorizado({ nombreMotorizado }: PanelMotorizadoProps) {
       console.error('Error al concluir el servicio:', error);
       alert('No se pudo actualizar el estatus del servicio.');
     } else {
-      // Cierra el chat activo si era el de esta orden y recarga
       if (chatActivoId === ordenId) {
         setChatActivoId(null);
       }
       cargarOrdenes();
     }
+  };
+
+  const manejarSalida = async () => {
+    // Cambiar estatus a fuera de línea en Supabase
+    await supabase
+      .from('motorizados')
+      .update({ en_linea: false })
+      .eq('nombre', nombreMotorizado);
+
+    onCerrarSesion();
   };
 
   const enviarMensajeChat = async (e: React.FormEvent, ordenId: string) => {
@@ -111,8 +118,6 @@ export function PanelMotorizado({ nombreMotorizado }: PanelMotorizadoProps) {
       .eq('id', ordenId);
   };
 
-  // FILTRO: Solo muestra las APROBADAS (libres) o las EN_CAMINO de este motorizado.
-  // Al marcarse como COMPLETADO, desaparece automáticamente de su vista dejándolo libre.
   const listaVisible = ordenes.filter(
     (o) =>
       o.estado === 'APROBADO' ||
@@ -121,15 +126,23 @@ export function PanelMotorizado({ nombreMotorizado }: PanelMotorizadoProps) {
 
   return (
     <div className="max-w-4xl mx-auto p-4 space-y-6 text-white">
-      <div className="flex justify-between items-center bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-xl">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-xl gap-4">
         <div>
           <h1 className="text-lg font-black text-white">Panel de Motorizado</h1>
           <p className="text-xs text-slate-400">
             Conectado como: <span className="text-amber-400 font-bold">{nombreMotorizado}</span>
           </p>
         </div>
-        <div className="bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs px-3 py-1.5 rounded-full font-bold flex items-center gap-1.5">
-          <Bike size={14} /> Disponible / En línea
+        <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+          <div className="bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs px-3 py-1.5 rounded-full font-bold flex items-center gap-1.5">
+            <Bike size={14} /> En línea
+          </div>
+          <button
+            onClick={manejarSalida}
+            className="bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 text-xs font-bold px-3 py-1.5 rounded-full transition flex items-center gap-1.5 cursor-pointer"
+          >
+            <LogOut size={14} /> Cerrar Turno
+          </button>
         </div>
       </div>
 
@@ -157,7 +170,6 @@ export function PanelMotorizado({ nombreMotorizado }: PanelMotorizadoProps) {
                 </div>
               </div>
 
-              {/* Si está APROBADO: Botón para tomar servicio */}
               {orden.estado === 'APROBADO' && (
                 <button
                   onClick={() => aceptarServicioAprobado(orden.id)}
@@ -167,7 +179,6 @@ export function PanelMotorizado({ nombreMotorizado }: PanelMotorizadoProps) {
                 </button>
               )}
 
-              {/* Si ya está EN_CAMINO: Opciones de Chat y Concluir Servicio */}
               {orden.estado === 'EN_CAMINO' && (
                 <div className="space-y-4 border-t border-slate-800 pt-4">
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -195,7 +206,6 @@ export function PanelMotorizado({ nombreMotorizado }: PanelMotorizadoProps) {
                     </div>
                   </div>
 
-                  {/* Caja del Chat en Tiempo Real */}
                   {chatActivoId === orden.id && (
                     <div className="bg-slate-950 border border-amber-500/30 rounded-2xl p-4 space-y-3">
                       <div className="text-xs font-bold text-slate-300 border-b border-slate-800 pb-2">
