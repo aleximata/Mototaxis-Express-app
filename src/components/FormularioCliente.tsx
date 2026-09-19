@@ -24,7 +24,6 @@ export const FormularioCliente: React.FC<FormularioClienteProps> = ({ onVolver, 
     setLoading(true);
 
     try {
-      // Insertamos usando los nombres de columnas correctos de tu tabla 'ordenes'
       const { data, error } = await supabase
         .from('ordenes')
         .insert([
@@ -45,7 +44,6 @@ export const FormularioCliente: React.FC<FormularioClienteProps> = ({ onVolver, 
       if (error) throw error;
 
       if (data && data.id) {
-        // Al crearse con éxito, pasamos el ID a App.tsx para abrir la pantalla de éxito y GPS
         onOrdenCreada(data.id);
       }
     } catch (error: any) {
@@ -73,7 +71,6 @@ export const FormularioCliente: React.FC<FormularioClienteProps> = ({ onVolver, 
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Nombre Completo */}
         <div>
           <label className="block text-xs font-bold text-slate-300 mb-1">Nombre Completo</label>
           <input
@@ -86,7 +83,6 @@ export const FormularioCliente: React.FC<FormularioClienteProps> = ({ onVolver, 
           />
         </div>
 
-        {/* Teléfono / WhatsApp */}
         <div>
           <label className="block text-xs font-bold text-slate-300 mb-1">Teléfono / WhatsApp</label>
           <input
@@ -99,7 +95,6 @@ export const FormularioCliente: React.FC<FormularioClienteProps> = ({ onVolver, 
           />
         </div>
 
-        {/* Tipo de Servicio */}
         <div>
           <label className="block text-xs font-bold text-slate-300 mb-1">Tipo de Servicio</label>
           <select
@@ -112,7 +107,6 @@ export const FormularioCliente: React.FC<FormularioClienteProps> = ({ onVolver, 
           </select>
         </div>
 
-        {/* Monto (USD) */}
         <div>
           <label className="block text-xs font-bold text-slate-300 mb-1">Monto (USD)</label>
           <select
@@ -126,7 +120,6 @@ export const FormularioCliente: React.FC<FormularioClienteProps> = ({ onVolver, 
           </select>
         </div>
 
-        {/* Banco Emisor */}
         <div>
           <label className="block text-xs font-bold text-slate-300 mb-1">Banco Emisor</label>
           <select
@@ -141,7 +134,6 @@ export const FormularioCliente: React.FC<FormularioClienteProps> = ({ onVolver, 
           </select>
         </div>
 
-        {/* Cédula del Pagador */}
         <div>
           <label className="block text-xs font-bold text-slate-300 mb-1">Cédula del Pagador</label>
           <input
@@ -154,7 +146,6 @@ export const FormularioCliente: React.FC<FormularioClienteProps> = ({ onVolver, 
           />
         </div>
 
-        {/* Últimos Ref. Pago Móvil */}
         <div>
           <label className="block text-xs font-bold text-slate-300 mb-1">Últimos Ref. Pago Móvil</label>
           <input
@@ -168,7 +159,6 @@ export const FormularioCliente: React.FC<FormularioClienteProps> = ({ onVolver, 
           />
         </div>
 
-        {/* Botón de Enviar */}
         <button
           type="submit"
           disabled={loading}
