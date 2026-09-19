@@ -143,6 +143,7 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
       .eq('id', ordenId);
   };
 
+  // Si no está autenticado, mostramos el login con PIN
   if (!autenticado) {
     return (
       <div className="max-w-md mx-auto mt-10 bg-slate-900/90 backdrop-blur-2xl border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6 text-white">
@@ -232,9 +233,7 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
           </div>
         ) : (
           listaVisible.map((orden) => {
-            // Definir destino de Google Maps de forma inteligente
-            const direccionTexto = orden.direccion || orden.ubicacion || '';
-            const queryMap = direccionTexto.trim() !== '' ? direccionTexto : `Cliente ${orden.cliente_nombre}`;
+            const queryMap = orden.direccion || orden.cliente_nombre || 'Ubicacion cliente';
 
             return (
               <div key={orden.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
@@ -255,14 +254,14 @@ export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotor
                   </div>
                 </div>
 
-                {/* BLOQUE DE UBICACIÓN Y GOOGLE MAPS GARANTIZADO */}
+                {/* BOTÓN DE GOOGLE MAPS GARANTIZADO */}
                 <div className="bg-slate-950/80 border border-slate-800 p-3.5 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
                   <div className="flex items-start gap-2 text-slate-300">
                     <MapPin size={16} className="text-rose-400 shrink-0 mt-0.5" />
                     <div>
                       <strong className="text-white block">Dirección de entrega:</strong>
                       <span className={orden.direccion ? 'text-slate-300' : 'text-amber-400 italic'}>
-                        {orden.direccion ? orden.direccion : '⚠️ No especificada (Preguntar por chat o llamada)'}
+                        {orden.direccion ? orden.direccion : '⚠️ No especificada (Preguntar por chat)'}
                       </span>
                     </div>
                   </div>
