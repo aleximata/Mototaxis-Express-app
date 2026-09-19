@@ -2,13 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { MessageSquare, Navigation, Bike, CheckCircle2, LogOut, Lock, AlertCircle, ArrowRight, MapPin, Phone, User, Compass } from 'lucide-react';
 
-export function PanelMotorizado() {
-  // Estados de Nombre y Autenticación con PIN
-  const [nombreInput, setNombreInput] = useState('');
-  const [nombreMotorizado, setNombreMotorizado] = useState<string>(() => {
-    return sessionStorage.getItem('motorizado_nombre') || '';
-  });
+interface PanelMotorizadoProps {
+  nombreMotorizado: string;
+  onCerrarSesion: () => void;
+}
 
+export function PanelMotorizado({ nombreMotorizado, onCerrarSesion }: PanelMotorizadoProps) {
+  // Estados de Autenticación con PIN
   const [autenticado, setAutenticado] = useState<boolean>(() => {
     return sessionStorage.getItem('motorizado_auth') === 'true';
   });
@@ -22,23 +22,6 @@ export function PanelMotorizado() {
   const [chatActivoId, setChatActivoId] = useState<string | null>(null);
   const [mensaje, setMensaje] = useState('');
   const [mensajesChat, setMensajesChat] = useState<any[]>([]);
-
-  // Registrar o activar al motorizado en la base de datos de Supabase
-  const activarTurno = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!nombreInput.trim()) return;
-
-    const nombreLimpio = nombreInput.trim();
-    setNombreMotorizado(nombreLimpio);
-    sessionStorage.setItem('motorizado_nombre', nombreLimpio);
-
-    // Registramos o actualizamos el estatus en la tabla 'motorizados'
-    await supabase
-      .from('motorizados')
-      .upsert([
-        { nombre: nombreLimpio, en_linea: true, ultima_conexion: new Date().toISOString() }
-      ], { onConflict: 'nombre' });
-  };
 
   const manejarLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,13 +47,8 @@ export function PanelMotorizado() {
   };
 
   useEffect(() => {
-    if (autenticado && nombreMotorizado) {
+    if (autenticado) {
       cargarOrdenes();
-
-      // Mantener latido de conexión en línea
-      supabase
-        .from('motorizados')
-        .upsert([{ nombre: nombreMotorizado, en_linea: true, ultima_conexion: new Date().toISOString() }], { onConflict: 'nombre' });
 
       const channel = supabase
         .channel('motorizado_ordenes_cambios')
@@ -87,7 +65,7 @@ export function PanelMotorizado() {
         supabase.removeChannel(channel);
       };
     }
-  }, [autenticado, nombreMotorizado]);
+  }, [autenticado]);
 
   const aceptarServicioAprobado = async (ordenId: string) => {
     const { error } = await supabase
@@ -131,18 +109,14 @@ export function PanelMotorizado() {
   };
 
   const manejarSalida = async () => {
-    if (nombreMotorizado) {
-      await supabase
-        .from('motorizados')
-        .update({ en_linea: false })
-        .eq('nombre', nombreMotorizado);
-    }
-
     sessionStorage.removeItem('motorizado_auth');
-    sessionStorage.removeItem('motorizado_nombre');
-    setAutenticado(false);
-    setNombreMotorizado('');
-    setNombreInput('');
+
+    await supabase
+      .from('motorizados')
+      .update({ en_linea: false })
+      .eq('nombre', nombreMotorizado);
+
+    onCerrarSesion();
   };
 
   const enviarMensajeChat = async (e: React.FormEvent, ordenId: string) => {
@@ -169,44 +143,6 @@ export function PanelMotorizado() {
       .eq('id', ordenId);
   };
 
-  // Paso 1: Si no ha ingresado su nombre
-  if (!nombreMotorizado) {
-    return (
-      <div className="max-w-md mx-auto mt-10 bg-slate-900/90 backdrop-blur-2xl border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6 text-white">
-        <div className="text-center space-y-2">
-          <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center mx-auto text-amber-400">
-            <Bike size={30} />
-          </div>
-          <h2 className="text-xl font-black text-white">Registro de Motorizado</h2>
-          <p className="text-xs text-slate-400">Ingresa tu nombre para activarte en la lista de servicios.</p>
-        </div>
-
-        <form onSubmit={activarTurno} className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Tu Nombre o Alias</label>
-            <input
-              type="text"
-              value={nombreInput}
-              onChange={(e) => setNombreInput(e.target.value)}
-              placeholder="Ej. Carlos / Manuel"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-center text-white focus:outline-none focus:border-amber-500 transition"
-              required
-              autoFocus
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-3 px-6 rounded-xl transition text-xs uppercase tracking-wider shadow-lg shadow-amber-500/20 cursor-pointer flex items-center justify-center gap-2"
-          >
-            Comenzar Turno <ArrowRight size={16} />
-          </button>
-        </form>
-      </div>
-    );
-  }
-
-  // Paso 2: Si falta colocar el PIN de seguridad
   if (!autenticado) {
     return (
       <div className="max-w-md mx-auto mt-10 bg-slate-900/90 backdrop-blur-2xl border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6 text-white">
@@ -216,7 +152,7 @@ export function PanelMotorizado() {
           </div>
           <h2 className="text-xl font-black text-white">Seguridad de Motorizado</h2>
           <p className="text-xs text-slate-400">
-            Activado como: <span className="text-amber-400 font-bold">{nombreMotorizado}</span>. Ingresa el PIN.
+            Ingresa el PIN para acceder como <span className="text-amber-400 font-bold">{nombreMotorizado}</span>.
           </p>
         </div>
 
@@ -249,10 +185,10 @@ export function PanelMotorizado() {
         </form>
 
         <button
-          onClick={() => setNombreMotorizado('')}
+          onClick={onCerrarSesion}
           className="w-full bg-slate-800/60 hover:bg-slate-800 text-slate-400 font-bold py-2.5 rounded-xl border border-slate-700/60 transition text-xs cursor-pointer"
         >
-          Cambiar Nombre
+          Volver
         </button>
       </div>
     );
@@ -296,13 +232,17 @@ export function PanelMotorizado() {
           </div>
         ) : (
           listaVisible.map((orden) => {
+            // Verificamos si la orden trae latitud y longitud (coordenadas GPS)
             const tieneLatLon = (orden.latitud !== undefined && orden.latitud !== null && orden.longitud !== undefined && orden.longitud !== null) ||
                                 (orden.lat !== undefined && orden.lat !== null && orden.lng !== undefined && orden.lng !== null);
 
             const latVal = orden.latitud ?? orden.lat;
             const lonVal = orden.longitud ?? orden.lng;
+
+            // Texto de dirección alternativo
             const direccionTexto = orden.direccion || orden.ubicacion || orden.destino || orden.punto_llegada || orden.detalles || '';
 
+            // URL inteligente para Google Maps (Si hay coordenadas, usa lat,lng; si hay texto, usa el texto; si no hay nada, usa el nombre del cliente)
             let googleMapsUrl = '';
             let etiquetaUbicacion = '';
 
@@ -336,6 +276,7 @@ export function PanelMotorizado() {
                   </div>
                 </div>
 
+                {/* BOTÓN DE GOOGLE MAPS Y UBICACIÓN GPS */}
                 <div className="bg-slate-950/80 border border-slate-800 p-3.5 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
                   <div className="flex items-start gap-2 text-slate-300">
                     {tieneLatLon ? (
@@ -411,7 +352,7 @@ export function PanelMotorizado() {
                             orden.chat_mensajes.map((m: any, idx: number) => (
                               <div key={idx} className={`flex flex-col ${m.remitente === 'motorizado' ? 'items-end' : 'items-start'}`}>
                                 <div className={`max-w-[75%] rounded-xl px-3 py-1.5 text-xs ${
-                                  m.remitente === 'motorizado'
+                                  m.remitenter === 'motorizado'
                                     ? 'bg-amber-500 text-slate-950 font-medium'
                                     : 'bg-slate-800 text-slate-200 border border-slate-700'
                                 }`}>
